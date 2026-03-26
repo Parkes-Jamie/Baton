@@ -1,22 +1,1357 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="theme-color" content="#7C3AED" />
-    <title>Baton</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module">
-      import { createRoot } from 'https://esm.sh/react-dom@18/client';
-      import React from 'https://esm.sh/react@18';
-      import App from './baton.jsx';
-      createRoot(document.getElementById('root')).render(
-        React.createElement(App)
-      );
-    </script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#7C3AED" />
+  <title>Baton</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #F8F7FF; }
+    #root { min-height: 100vh; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div id="root"><div style="display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;color:#7C3AED;font-size:18px;">Loading Baton...</div></div>
+
+  <!-- React and ReactDOM via CDN -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Babel to transpile JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Supabase -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
+  <script type="text/babel" data-presets="react">
+    const { useState, useEffect, useCallback } = React;
+    const { createClient } = supabase;
+
+const SUPABASE_URL = "https://wcqbvbzfatgevqizcqba.supabase.co";
+const SUPABASE_KEY = "sb_publishable_ySXW57AlTbHmDEjz7k1ROg_Yz6O8fZe";
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const C = {
+  purple: "#7C3AED", purpleLight: "#EDE9FE",
+  pink: "#EC4899", pinkLight: "#FCE7F3",
+  orange: "#F97316", orangeLight: "#FFEDD5",
+  teal: "#0D9488", tealLight: "#CCFBF1",
+  blue: "#3B82F6", blueLight: "#DBEAFE",
+  green: "#16A34A", greenLight: "#DCFCE7",
+  red: "#DC2626", redLight: "#FEE2E2",
+  yellow: "#D97706", yellowLight: "#FEF3C7",
+  bg: "#F8F7FF", card: "#FFFFFF",
+  text: "#1E1B4B", muted: "#6B7280",
+};
+
+const F = "'DM Sans', sans-serif";
+const PIN = String.fromCodePoint(0x1F4CC);
+const CAKE = String.fromCodePoint(0x1F382);
+
+const weekASchedule = [
+  { day: "Mon", who: "mum" }, { day: "Tue", who: "mum" },
+  { day: "Wed", who: "dad" }, { day: "Thu", who: "dad" }, { day: "Fri", who: "dad" },
+  { day: "Sat", who: "mum" }, { day: "Sun", who: "mum" },
+];
+const weekBSchedule = [
+  { day: "Mon", who: "dad" }, { day: "Tue", who: "dad" },
+  { day: "Wed", who: "mum" }, { day: "Thu", who: "mum" }, { day: "Fri", who: "mum" },
+  { day: "Sat", who: "dad" }, { day: "Sun", who: "dad" },
+];
+const WEEK_A_ANCHOR = new Date("2026-03-16");
+
+function getMondayOfWeek(date) {
+  const d = new Date(date); const day = d.getDay();
+  d.setDate(d.getDate() - (day === 0 ? 6 : day - 1)); d.setHours(0,0,0,0); return d;
+}
+function getWeekSchedule(date) {
+  const monday = getMondayOfWeek(date);
+  const diff = Math.round((monday - WEEK_A_ANCHOR) / (7 * 86400000));
+  return diff % 2 === 0 ? weekASchedule : weekBSchedule;
+}
+function toYMD(date) { return date.toISOString().slice(0,10); }
+function getDateForOffset(monday, offset) {
+  const d = new Date(monday); d.setDate(d.getDate() + offset); return toYMD(d);
+}
+function getOwnerForDate(ds, extraMap) {
+  if (extraMap && extraMap.has(ds)) return extraMap.get(ds);
+  const d = new Date(ds); const idx = d.getDay() === 0 ? 6 : d.getDay() - 1;
+  return getWeekSchedule(d)[idx].who;
+}
+function getExtraOwner(req) {
+  return req.type === "want_extra" ? req.from_parent : (req.from_parent === "dad" ? "mum" : "dad");
+}
+function generateInviteCode() {
+  return Math.random().toString(36).substring(2,8).toUpperCase();
+}
+
+const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const SKIN_TONES = ["","\uD83C\uDFFB","\uD83C\uDFFC","\uD83C\uDFFD","\uD83C\uDFFE","\uD83C\uDFFF"];
+const BASE_FACES = ["\uD83E\uDDD1","\uD83D\uDC67","\uD83D\uDC66","\uD83D\uDC69","\uD83D\uDC68","\uD83E\uDDD2","\uD83E\uDDD3","\uD83D\uDC74","\uD83D\uDC75"];
+const EXTRA_AVATARS = ["\uD83D\uDC36","\uD83D\uDC31","\u2B50","\uD83E\uDD29","\uD83D\uDE0E","\uD83E\uDD73","\uD83E\uDD20"];
+const SCHEDULE_BASE_FACES = ["\uD83D\uDC68","\uD83D\uDC69","\uD83E\uDDD1","\uD83D\uDC66","\uD83D\uDC67","\uD83E\uDDD2","\uD83D\uDC74","\uD83D\uDC75","\uD83E\uDDD3","\uD83E\uDDD4","\uD83D\uDE0E","\uD83E\uDD29","\uD83E\uDD73","\uD83E\uDD20"];
+const BIRTHDAY_EMOJIS = [CAKE,"\uD83C\uDF89","\uD83E\uDD73","\uD83C\uDF88","\uD83D\uDC96","\u2B50","\uD83C\uDF1F","\uD83D\uDC9D","\uD83C\uDF81"];
+const HOLIDAY_EMOJIS = ["\uD83C\uDFD6\uFE0F","\uD83D\uDC23","\uD83C\uDF38","\u2600\uFE0F","\uD83C\uDF42","\uD83C\uDF84","\u26F7\uFE0F","\uD83C\uDF83","\uD83C\uDF86","\uD83C\uDF0A","\uD83C\uDFD5\uFE0F","\uD83C\uDFA1"];
+const ROUTINE_TYPES = [
+  { id:"morning",  label:"Morning",  emoji:"\uD83C\uDF05", color:C.orange, colorLight:C.orangeLight },
+  { id:"bedtime",  label:"Bedtime",  emoji:"\uD83C\uDF19", color:C.purple, colorLight:C.purpleLight },
+  { id:"medical",  label:"Medical",  emoji:"\uD83D\uDC8A", color:C.pink,   colorLight:C.pinkLight },
+  { id:"other",    label:"Other",    emoji:"\uD83D\uDCCB", color:C.teal,   colorLight:C.tealLight },
+];
+const eventTypes = [
+  { id:"medical", label:"Medical", emoji:"\uD83E\uDE7A", color:C.pink,   colorLight:C.pinkLight },
+  { id:"school",  label:"School",  emoji:"\uD83C\uDFEB", color:C.teal,   colorLight:C.tealLight },
+  { id:"sport",   label:"Sport",   emoji:"\u26BD",        color:C.blue,   colorLight:C.blueLight },
+  { id:"other",   label:"Other",   emoji:PIN,             color:C.purple, colorLight:C.purpleLight },
+];
+const noteCategories = [
+  { id:"general",   label:"General",   emoji:"\uD83D\uDCAC", color:C.purple, colorLight:C.purpleLight },
+  { id:"health",    label:"Health",    emoji:"\uD83C\uDFE5", color:C.pink,   colorLight:C.pinkLight },
+  { id:"school",    label:"School",    emoji:"\uD83C\uDFEB", color:C.teal,   colorLight:C.tealLight },
+  { id:"behaviour", label:"Behaviour", emoji:"\uD83C\uDF1F", color:C.orange, colorLight:C.orangeLight },
+  { id:"reminder",  label:"Reminder",  emoji:"\u23F0",       color:C.blue,   colorLight:C.blueLight },
+];
+const clothingCategories = [
+  { id:"school",   label:"School",      emoji:"\uD83C\uDFEB", color:C.teal,   colorLight:C.tealLight },
+  { id:"sport",    label:"Sport & Kit", emoji:"\u26BD",        color:C.blue,   colorLight:C.blueLight },
+  { id:"casual",   label:"Casual",      emoji:"\uD83D\uDC55",  color:C.purple, colorLight:C.purpleLight },
+  { id:"footwear", label:"Footwear",    emoji:"\uD83D\uDC5F",  color:C.orange, colorLight:C.orangeLight },
+];
+const statusConfig = {
+  pending:  { label:"Pending",  color:C.orange, colorLight:C.orangeLight, emoji:"\u23F3" },
+  accepted: { label:"Accepted", color:C.green,  colorLight:C.greenLight,  emoji:"\u2705" },
+  declined: { label:"Declined", color:C.red,    colorLight:C.redLight,    emoji:"\u274C" },
+};
+const typeConfig = {
+  want_extra: { label:"Extra time",  emoji:"\u2B50", desc:f=>`${f==="dad"?"Dad":"Mum"} wants extra time` },
+  need_cover: { label:"Needs cover", emoji:"\uD83D\uDEA8", desc:f=>`${f==="dad"?"Dad":"Mum"} needs cover` },
+};
+const PROFILE_COLORS = [
+  { color:C.blue,   colorLight:C.blueLight },   { color:C.pink,   colorLight:C.pinkLight },
+  { color:C.purple, colorLight:C.purpleLight },  { color:C.teal,   colorLight:C.tealLight },
+  { color:C.orange, colorLight:C.orangeLight },  { color:C.green,  colorLight:C.greenLight },
+];
+const defaultSections = [
+  { label:"Sizes",   color:C.purple, colorLight:C.purpleLight, emoji:"\uD83D\uDCCF", rows:[["Shoe size","shoe_size"],["Clothes size","clothes_size"]] },
+  { label:"School",  color:C.teal,   colorLight:C.tealLight,   emoji:"\uD83C\uDFEB", rows:[["School","school"],["Form tutor","teacher"],["School phone","school_phone"]] },
+  { label:"Medical", color:C.pink,   colorLight:C.pinkLight,   emoji:"\uD83C\uDFE5", rows:[["Doctor","doctor"],["Phone","doctor_phone"],["NHS No.","nhs"],["Allergies","allergies"]] },
+  { label:"Dentist", color:C.orange, colorLight:C.orangeLight, emoji:"\uD83E\uDDB7", rows:[["Practice","dentist"],["Phone","dentist_phone"]] },
+];
+
+function applyTone(emoji, tone) {
+  if (!tone || EXTRA_AVATARS.includes(emoji)) return emoji;
+  return emoji + tone;
+}
+
+// ── Shared UI ─────────────────────────────────────────────────────────────────
+function Chip({ text, color, colorLight }) {
+  return <span style={{ background:colorLight, color, borderRadius:20, padding:"3px 10px", fontSize:12, fontWeight:700, fontFamily:F, whiteSpace:"nowrap" }}>{text}</span>;
+}
+function Card({ children, style={}, onClick }) {
+  return <div onClick={onClick} style={{ background:C.card, borderRadius:20, padding:"16px 18px", boxShadow:"0 2px 16px rgba(124,58,237,0.07)", marginBottom:12, cursor:onClick?"pointer":"default", ...style }}>{children}</div>;
+}
+function SecLabel({ children }) {
+  return <div style={{ fontFamily:F, fontWeight:700, fontSize:11, letterSpacing:1.2, textTransform:"uppercase", color:C.muted, marginBottom:8, marginTop:4, paddingLeft:2 }}>{children}</div>;
+}
+function Modal({ children, onClose, fullScreen }) {
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(30,27,75,0.5)", zIndex:200, display:"flex", alignItems:fullScreen?"stretch":"flex-end", justifyContent:"center" }} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{ background:C.bg, borderRadius:fullScreen?0:"24px 24px 0 0", padding:fullScreen?0:"0 0 44px", width:"100%", maxWidth:430, maxHeight:fullScreen?"100%":"92vh", overflowY:"auto", display:"flex", flexDirection:"column" }}>
+        {!fullScreen && <div style={{ width:40, height:4, borderRadius:2, background:"#E5E7EB", margin:"16px auto 0" }} />}
+        {children}
+      </div>
+    </div>
+  );
+}
+function SheetHeader({ title, onClose }) {
+  return (
+    <div style={{ background:`linear-gradient(135deg, ${C.purple}, ${C.pink})`, padding:"48px 20px 20px", position:"sticky", top:0, zIndex:10, display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
+      <div style={{ fontFamily:F, fontWeight:900, fontSize:22, color:"#fff" }}>{title}</div>
+      <button onClick={onClose} style={{ background:"rgba(255,255,255,0.2)", color:"#fff", border:"none", borderRadius:20, padding:"6px 14px", fontFamily:F, fontWeight:700, fontSize:13, cursor:"pointer" }}>Done</button>
+    </div>
+  );
+}
+function FieldInput({ label, value, onChange, placeholder, type="text" }) {
+  return (
+    <div style={{ marginBottom:14 }}>
+      {label && <div style={{ fontFamily:F, fontSize:11, fontWeight:700, color:C.muted, marginBottom:6, textTransform:"uppercase", letterSpacing:0.8 }}>{label}</div>}
+      <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
+        style={{ width:"100%", padding:"12px 14px", borderRadius:12, border:`2px solid ${C.purpleLight}`, outline:"none", fontFamily:F, fontSize:14, color:C.text, background:C.card, boxSizing:"border-box" }} />
+    </div>
+  );
+}
+function FieldTextarea({ label, value, onChange, placeholder }) {
+  return (
+    <div style={{ marginBottom:14 }}>
+      {label && <div style={{ fontFamily:F, fontSize:11, fontWeight:700, color:C.muted, marginBottom:6, textTransform:"uppercase", letterSpacing:0.8 }}>{label}</div>}
+      <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={3}
+        style={{ width:"100%", padding:"12px 14px", borderRadius:12, border:`2px solid ${C.purpleLight}`, outline:"none", fontFamily:F, fontSize:14, color:C.text, background:C.card, resize:"none", boxSizing:"border-box" }} />
+    </div>
+  );
+}
+function PrimaryBtn({ children, onClick, bg, disabled }) {
+  return <button onClick={onClick} disabled={disabled} style={{ width:"100%", padding:"14px 0", borderRadius:16, border:"none", background:disabled?"#D1D5DB":(bg||`linear-gradient(135deg, ${C.purple}, ${C.pink})`), color:"#fff", fontFamily:F, fontWeight:800, fontSize:15, cursor:disabled?"not-allowed":"pointer", marginTop:6 }}>{children}</button>;
+}
+function GhostBtn({ children, onClick }) {
+  return <button onClick={onClick} style={{ width:"100%", marginTop:8, padding:"12px 0", borderRadius:16, border:`2px solid ${C.purpleLight}`, background:"transparent", fontFamily:F, fontWeight:700, fontSize:14, color:C.muted, cursor:"pointer" }}>{children}</button>;
+}
+function DeleteBtn({ onClick }) {
+  return <button onClick={onClick} style={{ width:"100%", marginTop:8, padding:"12px 0", borderRadius:16, border:`2px solid ${C.redLight}`, background:"transparent", fontFamily:F, fontWeight:700, fontSize:14, color:C.red, cursor:"pointer" }}>Delete</button>;
+}
+function KidSwitcher({ kids, activeKid, setActiveKid }) {
+  return (
+    <div style={{ display:"flex", gap:10, marginBottom:16 }}>
+      {kids.map(k=><button key={k.id} onClick={()=>setActiveKid(k.id)} style={{ flex:1, padding:"10px 0", borderRadius:14, border:"none", cursor:"pointer", fontFamily:F, fontWeight:700, fontSize:14, background:activeKid===k.id?k.color:k.colorLight||C.purpleLight, color:activeKid===k.id?"#fff":k.color }}>{k.avatar} {k.name}</button>)}
+    </div>
+  );
+}
+function Spinner() {
+  return <div style={{ display:"flex", justifyContent:"center", padding:"40px 0" }}><div style={{ width:32, height:32, border:`3px solid ${C.purpleLight}`, borderTop:`3px solid ${C.purple}`, borderRadius:"50%", animation:"spin 0.8s linear infinite" }} /></div>;
+}
+
+// ── Auth screens ──────────────────────────────────────────────────────────────
+function AuthScreen({ onAuth }) {
+  const [mode, setMode] = useState("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  const login = async () => {
+    if (!email || !password) { setError("Please enter email and password"); return; }
+    setLoading(true); setError("");
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) setError(error.message);
+    setLoading(false);
+  };
+
+  const signup = async () => {
+    if (!email || !password || !name) { setError("Please fill in all fields"); return; }
+    if (password.length < 6) { setError("Password must be at least 6 characters"); return; }
+    setLoading(true); setError("");
+    const { error } = await supabase.auth.signUp({ email, password, options: { data: { display_name: name } } });
+    if (error) setError(error.message);
+    else setMessage("Check your email to confirm your account, then come back and log in.");
+    setLoading(false);
+  };
+
+  const resetPassword = async () => {
+    if (!email) { setError("Please enter your email"); return; }
+    setLoading(true); setError("");
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    if (error) setError(error.message);
+    else setMessage("Password reset email sent. Check your inbox.");
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ minHeight:"100vh", background:C.bg, fontFamily:F, maxWidth:430, margin:"0 auto", display:"flex", flexDirection:"column" }}>
+      <div style={{ background:`linear-gradient(170deg, #7C3AED 0%, #EC4899 55%, #1E293B 100%)`, padding:"80px 20px 40px", textAlign:"center" }}>
+        <div style={{ fontSize:48, marginBottom:12 }}>{"\uD83C\uDFE0\uD83E\uDEF1\uD83C\uDFE0"}</div>
+        <div style={{ fontSize:36, fontWeight:900, color:"#fff", letterSpacing:-1 }}>Baton</div>
+        <div style={{ fontSize:15, color:"rgba(255,255,255,0.75)", marginTop:6 }}>Co-parenting, simplified</div>
+      </div>
+      <div style={{ padding:"32px 24px", flex:1 }}>
+        <div style={{ display:"flex", gap:8, marginBottom:24 }}>
+          {["login","signup"].map(m=><button key={m} onClick={()=>{setMode(m);setError("");setMessage("");}} style={{ flex:1, padding:"10px 0", borderRadius:14, border:"none", cursor:"pointer", fontFamily:F, fontWeight:700, fontSize:14, background:mode===m?C.purple:C.purpleLight, color:mode===m?"#fff":C.purple }}>{m==="login"?"Log in":"Sign up"}</button>)}
+        </div>
+        {message
+          ? <Card><div style={{ fontFamily:F, fontSize:14, color:C.green, lineHeight:1.6 }}>{message}</div></Card>
+          : <>
+              {mode==="signup" && <FieldInput label="Your name" value={name} onChange={setName} placeholder="e.g. James" />}
+              <FieldInput label="Email" value={email} onChange={setEmail} placeholder="you@email.com" type="email" />
+              {mode!=="reset" && <FieldInput label="Password" value={password} onChange={setPassword} placeholder="At least 6 characters" type="password" />}
+              {error && <div style={{ background:C.redLight, color:C.red, borderRadius:12, padding:"10px 14px", fontFamily:F, fontSize:13, fontWeight:600, marginBottom:10 }}>{error}</div>}
+              {mode==="login" && <PrimaryBtn onClick={login} disabled={loading}>{loading?"Logging in...":"Log in"}</PrimaryBtn>}
+              {mode==="signup" && <PrimaryBtn onClick={signup} disabled={loading}>{loading?"Creating account...":"Create account"}</PrimaryBtn>}
+              {mode==="reset" && <PrimaryBtn onClick={resetPassword} disabled={loading}>{loading?"Sending...":"Send reset email"}</PrimaryBtn>}
+              {mode==="login" && <GhostBtn onClick={()=>{setMode("reset");setError("");setMessage("");}}>Forgot password?</GhostBtn>}
+              {mode==="reset" && <GhostBtn onClick={()=>{setMode("login");setError("");setMessage("");}}>Back to log in</GhostBtn>}
+            </>
+        }
+      </div>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800;900&display=swap'); * { box-sizing:border-box; margin:0; padding:0; } @keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
+// ── Family setup ──────────────────────────────────────────────────────────────
+function FamilySetupScreen({ user, onSetup }) {
+  const [mode, setMode] = useState("choose");
+  const [familyName, setFamilyName] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const createFamily = async () => {
+    if (!familyName.trim()) { setError("Please enter a family name"); return; }
+    setLoading(true); setError("");
+    try {
+      const code = generateInviteCode();
+      const { data: family, error: fe } = await supabase.from("families").insert({ name: familyName.trim(), invite_code: code }).select().single();
+      if (fe) throw fe;
+      const { error: me } = await supabase.from("family_members").insert({ family_id: family.id, user_id: user.id, role: "admin", display_name: user.user_metadata?.display_name || "Parent" });
+      if (me) throw me;
+      await supabase.from("family_settings").insert({ family_id: family.id });
+      onSetup(family);
+    } catch (e) { setError(e.message); }
+    setLoading(false);
+  };
+
+  const joinFamily = async () => {
+    if (!inviteCode.trim()) { setError("Please enter an invite code"); return; }
+    setLoading(true); setError("");
+    try {
+      const { data: family, error: fe } = await supabase.from("families").select().eq("invite_code", inviteCode.trim().toUpperCase()).single();
+      if (fe || !family) { setError("Invite code not found. Check and try again."); setLoading(false); return; }
+      const { error: me } = await supabase.from("family_members").insert({ family_id: family.id, user_id: user.id, role: "parent", display_name: user.user_metadata?.display_name || "Parent" });
+      if (me) throw me;
+      onSetup(family);
+    } catch (e) { setError(e.message); }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ minHeight:"100vh", background:C.bg, fontFamily:F, maxWidth:430, margin:"0 auto" }}>
+      <div style={{ background:`linear-gradient(170deg, #7C3AED 0%, #EC4899 55%, #1E293B 100%)`, padding:"80px 20px 40px", textAlign:"center" }}>
+        <div style={{ fontSize:40, marginBottom:12 }}>{"\uD83C\uDFE0\uD83E\uDEF1\uD83C\uDFE0"}</div>
+        <div style={{ fontSize:28, fontWeight:900, color:"#fff" }}>Welcome to Baton</div>
+        <div style={{ fontSize:14, color:"rgba(255,255,255,0.75)", marginTop:6 }}>Set up your family to get started</div>
+      </div>
+      <div style={{ padding:"32px 24px" }}>
+        {mode==="choose" && <>
+          <Card onClick={()=>setMode("create")} style={{ cursor:"pointer", marginBottom:12 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+              <div style={{ width:48, height:48, borderRadius:16, background:C.purpleLight, display:"flex", alignItems:"center", justifyContent:"center", fontSize:24 }}>+</div>
+              <div><div style={{ fontFamily:F, fontWeight:800, fontSize:16, color:C.text }}>Create a new family</div><div style={{ fontFamily:F, fontSize:13, color:C.muted, marginTop:2 }}>Set up Baton for your family</div></div>
+            </div>
+          </Card>
+          <Card onClick={()=>setMode("join")} style={{ cursor:"pointer" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+              <div style={{ width:48, height:48, borderRadius:16, background:C.tealLight, display:"flex", alignItems:"center", justifyContent:"center", fontSize:24 }}>{"\uD83D\uDD17"}</div>
+              <div><div style={{ fontFamily:F, fontWeight:800, fontSize:16, color:C.text }}>Join an existing family</div><div style={{ fontFamily:F, fontSize:13, color:C.muted, marginTop:2 }}>Enter an invite code from the other parent</div></div>
+            </div>
+          </Card>
+        </>}
+        {mode==="create" && <>
+          <div style={{ fontFamily:F, fontWeight:900, fontSize:20, color:C.text, marginBottom:20 }}>Create your family</div>
+          <FieldInput label="Family name" value={familyName} onChange={setFamilyName} placeholder="e.g. The Smith Family" />
+          {error && <div style={{ background:C.redLight, color:C.red, borderRadius:12, padding:"10px 14px", fontFamily:F, fontSize:13, fontWeight:600, marginBottom:10 }}>{error}</div>}
+          <PrimaryBtn onClick={createFamily} disabled={loading}>{loading?"Creating...":"Create family"}</PrimaryBtn>
+          <GhostBtn onClick={()=>{setMode("choose");setError("");}}>Back</GhostBtn>
+        </>}
+        {mode==="join" && <>
+          <div style={{ fontFamily:F, fontWeight:900, fontSize:20, color:C.text, marginBottom:20 }}>Join a family</div>
+          <FieldInput label="Invite code" value={inviteCode} onChange={setInviteCode} placeholder="e.g. ABC123" />
+          {error && <div style={{ background:C.redLight, color:C.red, borderRadius:12, padding:"10px 14px", fontFamily:F, fontSize:13, fontWeight:600, marginBottom:10 }}>{error}</div>}
+          <PrimaryBtn onClick={joinFamily} disabled={loading}>{loading?"Joining...":"Join family"}</PrimaryBtn>
+          <GhostBtn onClick={()=>{setMode("choose");setError("");}}>Back</GhostBtn>
+        </>}
+      </div>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800;900&display=swap'); * { box-sizing:border-box; margin:0; padding:0; }`}</style>
+    </div>
+  );
+}
+
+// ── Emoji pickers ─────────────────────────────────────────────────────────────
+function AvatarPicker({ value, onChange }) {
+  const [tone, setTone] = useState("");
+  const allAvatars = [...BASE_FACES.map(b=>applyTone(b,tone)), ...EXTRA_AVATARS];
+  return (
+    <div style={{ marginBottom:14 }}>
+      <div style={{ fontFamily:F, fontSize:11, fontWeight:700, color:C.muted, marginBottom:8, textTransform:"uppercase", letterSpacing:0.8 }}>Avatar</div>
+      <div style={{ display:"flex", gap:6, marginBottom:10, alignItems:"center" }}>
+        <span style={{ fontFamily:F, fontSize:11, color:C.muted, fontWeight:600 }}>Skin:</span>
+        {SKIN_TONES.map((t,i)=>(
+          <button key={i} onClick={()=>{setTone(t); onChange(applyTone(BASE_FACES[0],t));}} style={{ width:32, height:32, borderRadius:10, border:tone===t?`3px solid ${C.purple}`:"2px solid transparent", background:tone===t?C.purpleLight:"#F3F4F6", fontSize:18, cursor:"pointer" }}>
+            {t?BASE_FACES[0]+t:BASE_FACES[0]}
+          </button>
+        ))}
+      </div>
+      <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+        {allAvatars.map((a,i)=>(
+          <button key={i} onClick={()=>onChange(a)} style={{ width:42, height:42, borderRadius:12, border:value===a?`3px solid ${C.purple}`:"2px solid transparent", background:value===a?C.purpleLight:"#F3F4F6", fontSize:22, cursor:"pointer" }}>{a}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ParentEmojiPicker({ label, value, onChange, accentColor, accentLight }) {
+  const [tone, setTone] = useState("");
+  const noTone = ["\uD83D\uDE0E","\uD83E\uDD29","\uD83E\uDD73","\uD83E\uDD20"];
+  const faces = SCHEDULE_BASE_FACES.map(f=>noTone.includes(f)?f:f+tone);
+  return (
+    <div style={{ marginBottom:20 }}>
+      <div style={{ fontFamily:F, fontSize:12, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:0.8, marginBottom:8 }}>{label} (currently {value})</div>
+      <div style={{ display:"flex", gap:6, marginBottom:10, alignItems:"center" }}>
+        <span style={{ fontFamily:F, fontSize:11, color:C.muted, fontWeight:600 }}>Skin:</span>
+        {SKIN_TONES.map((t,i)=>(
+          <button key={i} onClick={()=>setTone(t)} style={{ width:30, height:30, borderRadius:8, border:tone===t?`3px solid ${accentColor}`:"2px solid transparent", background:tone===t?accentLight:"#F3F4F6", fontSize:16, cursor:"pointer" }}>
+            {t?SCHEDULE_BASE_FACES[0]+t:SCHEDULE_BASE_FACES[0]}
+          </button>
+        ))}
+      </div>
+      <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+        {faces.map((e,i)=>(
+          <button key={i} onClick={()=>onChange(e)} style={{ width:44, height:44, borderRadius:12, border:value===e?`3px solid ${accentColor}`:"2px solid transparent", background:value===e?accentLight:"#F3F4F6", fontSize:24, cursor:"pointer" }}>{e}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EmojiPickerModal({ dadEmoji, mumEmoji, setDadEmoji, setMumEmoji, onClose }) {
+  return (
+    <Modal onClose={onClose}>
+      <div style={{ padding:"20px 20px 0" }}>
+        <div style={{ fontFamily:F, fontWeight:900, fontSize:20, color:C.text, marginBottom:20 }}>Change parent emojis</div>
+        <ParentEmojiPicker label="Dad emoji" value={dadEmoji} onChange={setDadEmoji} accentColor={C.blue} accentLight={C.blueLight} />
+        <ParentEmojiPicker label="Mum emoji" value={mumEmoji} onChange={setMumEmoji} accentColor={C.pink} accentLight={C.pinkLight} />
+        <PrimaryBtn onClick={onClose}>Done</PrimaryBtn>
+      </div>
+    </Modal>
+  );
+}
+
+// ── Schedule strip ────────────────────────────────────────────────────────────
+function WeekRow({ schedule, label, isCurrentWeek, todayIdx, extraMap, sportDays, holidayDateSet, holidayOwnerMap, dadEmoji, mumEmoji, events=[] }) {
+  const today = new Date();
+  const base = isCurrentWeek ? today : new Date(today.getTime() + 7*86400000);
+  const monday = getMondayOfWeek(base);
+  return (
+    <div style={{ marginBottom:isCurrentWeek?14:0 }}>
+      <div style={{ fontFamily:F, fontSize:11, fontWeight:800, color:isCurrentWeek?"rgba(255,255,255,0.9)":"rgba(255,255,255,0.5)", letterSpacing:0.8, textTransform:"uppercase", marginBottom:8, display:"flex", alignItems:"center", gap:6 }}>
+        {label}
+        {isCurrentWeek && <span style={{ background:"rgba(255,255,255,0.25)", color:"#fff", borderRadius:6, padding:"1px 7px", fontSize:10 }}>now</span>}
+      </div>
+      <div style={{ display:"flex", gap:5 }}>
+        {schedule.map((s,i)=>{
+          const ds = getDateForOffset(monday, i);
+          const isToday = isCurrentWeek && i===todayIdx;
+          const isExtra = extraMap.has(ds);
+          const isHoliday = holidayDateSet && holidayDateSet.has(ds);
+          const baseOwner = isExtra ? extraMap.get(ds) : s.who;
+          const owner = (isHoliday && holidayOwnerMap && holidayOwnerMap.has(ds)) ? holidayOwnerMap.get(ds) : baseOwner;
+          const dots = sportDays.filter(sd=>sd.day_of_week===new Date(ds).getDay());
+          const hasEvent = events.some(ev=>ev.date===ds);
+          const dayNum = new Date(ds).getDate();
+          const tintBg = owner==="dad"?"rgba(219,234,254,0.55)":"rgba(252,231,243,0.55)";
+          const tintBorder = owner==="dad"?"rgba(147,197,253,0.8)":"rgba(249,168,212,0.8)";
+          const cellBg = isExtra?"rgba(187,247,208,0.55)":tintBg;
+          const cellBorder = isToday?"3px solid #FCD34D":isExtra?"2px solid rgba(22,163,74,0.6)":isHoliday?"2.5px solid #F59E0B":hasEvent?`2px solid rgba(124,58,237,0.6)"`:(`2px solid ${tintBorder}`);
+          const numColor = isExtra?"#15803d":owner==="dad"?"#1d4ed8":"#be185d";
+          return (
+            <div key={i} style={{ flex:1, textAlign:"center", borderRadius:14, padding:"8px 2px 7px", background:cellBg, border:cellBorder, opacity:!isCurrentWeek?0.75:1 }}>
+              <div style={{ fontSize:10, fontWeight:700, fontFamily:F, color:numColor, marginBottom:2 }}>{s.day.slice(0,2)}</div>
+              <div style={{ fontSize:15, marginBottom:2 }}>{owner==="dad"?dadEmoji:mumEmoji}</div>
+              <div style={{ fontSize:10, fontWeight:800, fontFamily:F, color:numColor }}>{dayNum}</div>
+              {isHoliday && <div style={{ fontSize:8 }}>{"\u2600\uFE0F"}</div>}
+              {(dots.length>0||hasEvent) && <div style={{ display:"flex", justifyContent:"center", gap:1, marginTop:1 }}>{dots.slice(0,1).map(sd=><span key={sd.id} style={{ fontSize:9 }}>{sd.emoji}</span>)}{hasEvent && <span style={{ fontSize:9 }}>{PIN}</span>}</div>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Year view ─────────────────────────────────────────────────────────────────
+function YearView({ extras, events, sportDays, holidayDateSet, holidayOwnerMap }) {
+  const today = new Date();
+  const [viewYear, setViewYear] = useState(today.getFullYear());
+  const [selectedDay, setSelectedDay] = useState(null);
+  const extraMap = new Map(extras.filter(e=>e.status==="accepted").map(e=>[e.date, getExtraOwner(e)]));
+  const pendingSet = new Set(extras.filter(e=>e.status==="pending").map(e=>e.date));
+  return (
+    <div style={{ padding:"0 16px 32px" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", margin:"16px 0" }}>
+        <button onClick={()=>setViewYear(v=>v-1)} style={{ background:C.purpleLight, color:C.purple, border:"none", borderRadius:12, padding:"8px 16px", fontFamily:F, fontWeight:800, fontSize:18, cursor:"pointer" }}>{"<"}</button>
+        <span style={{ fontFamily:F, fontWeight:900, fontSize:20, color:C.text }}>{viewYear}</span>
+        <button onClick={()=>setViewYear(v=>v+1)} style={{ background:C.purpleLight, color:C.purple, border:"none", borderRadius:12, padding:"8px 16px", fontFamily:F, fontWeight:800, fontSize:18, cursor:"pointer" }}>{">"}</button>
+      </div>
+      {Array.from({length:12},(_,m)=>{
+        const daysInMonth = new Date(viewYear,m+1,0).getDate();
+        const firstDay = (()=>{const d=new Date(viewYear,m,1).getDay();return d===0?6:d-1;})();
+        const monthName = new Date(viewYear,m,1).toLocaleDateString("en-GB",{month:"long"});
+        return (
+          <Card key={m} style={{ padding:"14px 14px" }}>
+            <div style={{ fontFamily:F, fontWeight:800, fontSize:13, color:C.text, marginBottom:8 }}>{monthName}</div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2, marginBottom:3 }}>
+              {["M","T","W","T","F","S","S"].map((d,i)=><div key={i} style={{ textAlign:"center", fontFamily:F, fontSize:8, fontWeight:700, color:C.muted }}>{d}</div>)}
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2 }}>
+              {Array.from({length:firstDay}).map((_,i)=><div key={`e${i}`} />)}
+              {Array.from({length:daysInMonth},(_,i)=>{
+                const dn=i+1;
+                const ds=`${viewYear}-${String(m+1).padStart(2,"0")}-${String(dn).padStart(2,"0")}`;
+                const isToday=ds===toYMD(today);
+                const isExtra=extraMap.has(ds);
+                const isPending=pendingSet.has(ds);
+                const isHoliday=holidayDateSet&&holidayDateSet.has(ds);
+                const owner=getOwnerForDate(ds,extraMap);
+                const dayEvents=events.filter(ev=>ev.date===ds);
+                const hasEvent=dayEvents.length>0;
+                const dots=sportDays.filter(sd=>sd.day_of_week===new Date(ds).getDay());
+                let bg=owner==="dad"?C.blueLight:C.pinkLight;
+                let tc=owner==="dad"?C.blue:C.pink;
+                let border="1px solid transparent";
+                if(isHoliday){border="2px solid #F59E0B";}
+                if(isExtra){bg=C.greenLight;tc=C.green;border=`1px solid ${C.green}`;}
+                if(isPending){bg=C.orangeLight;tc=C.orange;border=`1px solid ${C.orange}`;}
+                if(hasEvent){bg=C.purpleLight;tc=C.purple;border=`1px solid ${C.purple}`;}
+                if(isToday){border=`2px solid ${C.purple}`;}
+                return (
+                  <div key={dn} onClick={()=>setSelectedDay(selectedDay===ds?null:ds)} style={{ textAlign:"center", borderRadius:6, padding:"3px 1px 2px", background:bg, border, cursor:"pointer" }}>
+                    <div style={{ fontFamily:F, fontSize:9, fontWeight:isToday?900:600, color:tc }}>{dn}</div>
+                    <div style={{ display:"flex", justifyContent:"center", gap:1, minHeight:8 }}>
+                      {dots.slice(0,1).map(sd=><span key={sd.id} style={{ fontSize:6 }}>{sd.emoji}</span>)}
+                      {hasEvent && <span style={{ fontSize:7 }}>{PIN}</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {selectedDay && selectedDay.startsWith(`${viewYear}-${String(m+1).padStart(2,"0")}`) && (()=>{
+              const owner=getOwnerForDate(selectedDay,extraMap);
+              const dots=sportDays.filter(sd=>sd.day_of_week===new Date(selectedDay).getDay());
+              const extra=extras.find(e=>e.date===selectedDay);
+              const dayEvs=events.filter(ev=>ev.date===selectedDay);
+              return (
+                <div style={{ marginTop:10, background:C.purpleLight, borderRadius:12, padding:"10px 12px" }}>
+                  <div style={{ fontFamily:F, fontWeight:800, fontSize:12, color:C.purple, marginBottom:6 }}>
+                    {new Date(selectedDay).toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})}
+                  </div>
+                  <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                    <Chip text={owner==="dad"?"Dad":"Mum"} color={owner==="dad"?C.blue:C.pink} colorLight={owner==="dad"?C.blueLight:C.pinkLight} />
+                    {extra && <Chip text={typeConfig[extra.type]?.label||extra.type} color={statusConfig[extra.status]?.color||C.muted} colorLight={statusConfig[extra.status]?.colorLight||"#F3F4F6"} />}
+                    {dots.map(sd=><Chip key={sd.id} text={sd.label} color={sd.color||C.blue} colorLight={sd.color_light||C.blueLight} />)}
+                    {dayEvs.map(ev=><Chip key={ev.id} text={`${ev.emoji} ${ev.title}`} color={C.purple} colorLight={C.purpleLight} />)}
+                  </div>
+                </div>
+              );
+            })()}
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Settings screen ───────────────────────────────────────────────────────────
+function SettingsScreen({ family, user, dadEmoji, mumEmoji, setDadEmoji, setMumEmoji, familyId, onSignOut }) {
+  const [copying, setCopying] = useState(false);
+  const copyCode = () => {
+    navigator.clipboard?.writeText(family.invite_code).catch(()=>{});
+    setCopying(true); setTimeout(()=>setCopying(false), 2000);
+  };
+  const signOut = async () => { await supabase.auth.signOut(); onSignOut(); };
+  return (
+    <div style={{ padding:"0 16px 32px" }}>
+      <Card style={{ marginTop:8 }}>
+        <div style={{ fontFamily:F, fontWeight:800, fontSize:16, color:C.text, marginBottom:12 }}>Family</div>
+        <div style={{ fontFamily:F, fontSize:14, color:C.muted, marginBottom:4 }}>Family name</div>
+        <div style={{ fontFamily:F, fontSize:16, fontWeight:700, color:C.text, marginBottom:16 }}>{family?.name}</div>
+        <div style={{ fontFamily:F, fontSize:14, color:C.muted, marginBottom:6 }}>Invite code — share with the other parent</div>
+        <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+          <div style={{ flex:1, background:C.purpleLight, borderRadius:12, padding:"12px 16px", fontFamily:F, fontWeight:900, fontSize:22, color:C.purple, letterSpacing:4, textAlign:"center" }}>{family?.invite_code}</div>
+          <button onClick={copyCode} style={{ background:copying?C.green:C.purple, color:"#fff", border:"none", borderRadius:12, padding:"12px 16px", fontFamily:F, fontWeight:700, fontSize:14, cursor:"pointer" }}>{copying?"Copied!":"Copy"}</button>
+        </div>
+      </Card>
+      <Card>
+        <div style={{ fontFamily:F, fontWeight:800, fontSize:16, color:C.text, marginBottom:12 }}>Parent emojis</div>
+        <ParentEmojiPicker label="Dad emoji" value={dadEmoji} onChange={async v=>{ setDadEmoji(v); await supabase.from("family_settings").update({dad_emoji:v}).eq("family_id",familyId); }} accentColor={C.blue} accentLight={C.blueLight} />
+        <ParentEmojiPicker label="Mum emoji" value={mumEmoji} onChange={async v=>{ setMumEmoji(v); await supabase.from("family_settings").update({mum_emoji:v}).eq("family_id",familyId); }} accentColor={C.pink} accentLight={C.pinkLight} />
+      </Card>
+      <Card>
+        <div style={{ fontFamily:F, fontWeight:800, fontSize:16, color:C.text, marginBottom:4 }}>Account</div>
+        <div style={{ fontFamily:F, fontSize:13, color:C.muted, marginBottom:16 }}>{user?.email}</div>
+        <button onClick={signOut} style={{ width:"100%", padding:"12px 0", borderRadius:14, border:`2px solid ${C.redLight}`, background:"transparent", fontFamily:F, fontWeight:700, fontSize:14, color:C.red, cursor:"pointer" }}>Sign out</button>
+      </Card>
+    </div>
+  );
+}
+
+// ── Main App ──────────────────────────────────────────────────────────────────
+function Baton() {
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [family, setFamily] = useState(null);
+  const [familyId, setFamilyId] = useState(null);
+
+  // App data
+  const [kids, setKids] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [sportDays, setSportDays] = useState([]);
+  const [extras, setExtras] = useState([]);
+  const [holidays, setHolidays] = useState([]);
+  const [notes, setNotes] = useState([]);
+  const [birthdays, setBirthdays] = useState([]);
+  const [routines, setRoutines] = useState([]);
+  const [clothing, setClothing] = useState([]);
+  const [profiles, setProfiles] = useState({});
+  const [dadEmoji, setDadEmoji] = useState("\uD83D\uDC68");
+  const [mumEmoji, setMumEmoji] = useState("\uD83D\uDC69");
+  const [dataLoading, setDataLoading] = useState(false);
+
+  const [openScreen, setOpenScreen] = useState(null);
+  const [showYear, setShowYear] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+
+  // Auth listener
+  useEffect(()=>{
+    supabase.auth.getSession().then(({data:{session}})=>{ setSession(session); setLoading(false); });
+    const {data:{subscription}} = supabase.auth.onAuthStateChange((_,session)=>setSession(session));
+    return ()=>subscription.unsubscribe();
+  },[]);
+
+  // Load family when session exists
+  useEffect(()=>{
+    if (!session) { setFamily(null); setFamilyId(null); return; }
+    loadFamily();
+  },[session]);
+
+  const loadFamily = async () => {
+    const { data } = await supabase.from("family_members").select("family_id, families(*)").eq("user_id", session.user.id).single();
+    if (data) { setFamily(data.families); setFamilyId(data.family_id); }
+  };
+
+  // Load all data when family is set
+  useEffect(()=>{
+    if (!familyId) return;
+    loadAllData();
+    const subs = setupRealtime();
+    return ()=>{ subs.forEach(s=>s.unsubscribe()); };
+  },[familyId]);
+
+  const loadAllData = async () => {
+    setDataLoading(true);
+    const fid = familyId;
+    const [k,ev,sp,ex,ho,no,bi,ro,cl,pr,fs] = await Promise.all([
+      supabase.from("kids").select("*").eq("family_id",fid).order("created_at"),
+      supabase.from("events").select("*").eq("family_id",fid).order("date"),
+      supabase.from("sport_days").select("*").eq("family_id",fid),
+      supabase.from("extras").select("*").eq("family_id",fid).order("date"),
+      supabase.from("holidays").select("*").eq("family_id",fid).order("start_date"),
+      supabase.from("notes").select("*").eq("family_id",fid).order("created_at",{ascending:false}),
+      supabase.from("birthdays").select("*").eq("family_id",fid),
+      supabase.from("routines").select("*").eq("family_id",fid),
+      supabase.from("clothing").select("*").eq("family_id",fid),
+      supabase.from("profiles").select("*").eq("family_id",fid),
+      supabase.from("family_settings").select("*").eq("family_id",fid).single(),
+    ]);
+    if (k.data) setKids(k.data);
+    if (ev.data) setEvents(ev.data);
+    if (sp.data) setSportDays(sp.data);
+    if (ex.data) setExtras(ex.data);
+    if (ho.data) setHolidays(ho.data);
+    if (no.data) setNotes(no.data);
+    if (bi.data) setBirthdays(bi.data);
+    if (ro.data) setRoutines(ro.data);
+    if (cl.data) setClothing(cl.data);
+    if (pr.data) {
+      const pm = {};
+      pr.data.forEach(p=>{ pm[p.kid_id]=p; });
+      setProfiles(pm);
+    }
+    if (fs.data) { setDadEmoji(fs.data.dad_emoji||"\uD83D\uDC68"); setMumEmoji(fs.data.mum_emoji||"\uD83D\uDC69"); }
+    setDataLoading(false);
+  };
+
+  const setupRealtime = () => {
+    const tables = ["kids","events","sport_days","extras","holidays","notes","birthdays","routines","clothing","profiles","family_settings"];
+    return tables.map(t=>
+      supabase.channel(`${t}_changes`).on("postgres_changes",{event:"*",schema:"public",table:t,filter:`family_id=eq.${familyId}`},()=>loadAllData()).subscribe()
+    );
+  };
+
+  // DB helpers
+  const db = {
+    add: async (table, data) => { const {data:d,error} = await supabase.from(table).insert({...data, family_id:familyId}).select().single(); return d; },
+    update: async (table, id, data) => { await supabase.from(table).update(data).eq("id",id); },
+    remove: async (table, id) => { await supabase.from(table).delete().eq("id",id); },
+  };
+
+  if (loading) return <div style={{ minHeight:"100vh", background:C.bg, display:"flex", alignItems:"center", justifyContent:"center" }}><Spinner /></div>;
+  if (!session) return <AuthScreen onAuth={setSession} />;
+  if (!familyId) return <FamilySetupScreen user={session.user} onSetup={fam=>{ setFamily(fam); setFamilyId(fam.id); }} />;
+
+  const today = new Date();
+  const dayIdx = today.getDay()===0?6:today.getDay()-1;
+  const thisWeek = getWeekSchedule(today);
+  const nextWeekDate = new Date(today); nextWeekDate.setDate(today.getDate()+7);
+  const nextWeek = getWeekSchedule(nextWeekDate);
+  const todayOwner = thisWeek[dayIdx].who;
+
+  const extraMap = new Map(extras.filter(e=>e.status==="accepted").map(e=>[e.date, getExtraOwner(e)]));
+  const pendingCount = extras.filter(e=>e.status==="pending").length;
+  const recentNotes = notes.filter(n=>{ const d=new Date(n.created_at); return (Date.now()-d)<86400000; }).length;
+  const nextEvent = [...events].sort((a,b)=>a.date.localeCompare(b.date)).find(e=>e.date>=toYMD(today));
+  const nextHoliday = [...holidays].sort((a,b)=>a.start_date.localeCompare(b.start_date)).find(h=>h.end_date>=toYMD(today));
+
+  const getNextBirthday = ds=>{ const [,m,d]=ds.split("-"); const t=new Date(today.getFullYear(),parseInt(m)-1,parseInt(d)); return t>=today?t:new Date(today.getFullYear()+1,parseInt(m)-1,parseInt(d)); };
+  const upcomingBirthday = birthdays.length>0?Math.min(...birthdays.map(b=>Math.ceil((getNextBirthday(b.date)-today)/86400000))):null;
+
+  const holidayOwnerMap = new Map();
+  holidays.forEach(h=>{ const d=new Date(h.start_date); while(toYMD(d)<=h.end_date){ const ds=toYMD(d); if((h.dad_days||[]).includes(ds)) holidayOwnerMap.set(ds,"dad"); else if((h.dad_days||[]).length>0) holidayOwnerMap.set(ds,"mum"); d.setDate(d.getDate()+1); } });
+  const holidayDateSet = new Set();
+  holidays.forEach(h=>{ const d=new Date(h.start_date); while(toYMD(d)<=h.end_date){ holidayDateSet.add(toYMD(new Date(d))); d.setDate(d.getDate()+1); } });
+
+  const todayStr = toYMD(today);
+  const upcomingItems = [
+    ...[...events].filter(e=>e.date>=todayStr).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,4).map(e=>({type:"event",date:e.date,label:e.title,emoji:e.emoji,color:C.teal,colorLight:C.tealLight,screen:"events"})),
+    ...birthdays.map(b=>{ const next=getNextBirthday(b.date); return {type:"birthday",date:toYMD(next),label:b.name,emoji:CAKE,color:C.pink,colorLight:C.pinkLight,screen:"birthdays"}; }).filter(b=>b.date>=todayStr).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,2),
+  ].sort((a,b)=>a.date.localeCompare(b.date)).slice(0,5);
+
+  const tiles = [
+    { id:"profiles",  label:"Profiles",   emoji:"\uD83D\uDC64", color:C.purple, colorLight:C.purpleLight, subtitle:kids.length?kids.map(k=>k.name).join(" & "):"Add your children", wide:true },
+    { id:"events",    label:"Events",     emoji:PIN,            color:C.teal,   colorLight:C.tealLight,   subtitle:nextEvent?`Next: ${nextEvent.title}`:"No events yet" },
+    { id:"extras",    label:"Swaps",      emoji:"\u2B50",       color:C.orange, colorLight:C.orangeLight, subtitle:pendingCount?`${pendingCount} pending`:"No pending requests", badge:pendingCount },
+    { id:"holidays",  label:"Holidays",   emoji:"\uD83C\uDFD6\uFE0F", color:C.yellow, colorLight:C.yellowLight, subtitle:nextHoliday?`Next: ${nextHoliday.name}`:"No holidays set" },
+    { id:"birthdays", label:"Birthdays",  emoji:CAKE,           color:C.pink,   colorLight:C.pinkLight,   subtitle:upcomingBirthday!==null?`Next in ${upcomingBirthday}d`:"Add birthdays", badge:upcomingBirthday!==null&&upcomingBirthday<=7?1:0 },
+    { id:"routines",  label:"Routines",   emoji:"\uD83C\uDF19", color:C.purple, colorLight:C.purpleLight, subtitle:routines.length?`${routines.length} routine${routines.length>1?"s":""}`:"Set up routines" },
+    { id:"clothing",  label:"Clothing",   emoji:"\uD83D\uDC55", color:C.blue,   colorLight:C.blueLight,   subtitle:"Track where things are" },
+    { id:"handover",  label:"Handover",   emoji:"\uD83D\uDCAC", color:C.teal,   colorLight:C.tealLight,   subtitle:notes.length?`${notes.length} note${notes.length>1?"s":""}`:"Leave notes at swap", badge:recentNotes, wide:true },
+    { id:"scan",      label:"Scan",       emoji:"\uD83D\uDCF8", color:C.orange, colorLight:C.orangeLight, subtitle:"Photo to calendar" },
+  ];
+
+  const screenTitles = { profiles:"Profiles", events:"Events & Activities", extras:"Swaps", holidays:"Holidays & Terms", birthdays:"Birthdays", routines:"Routines", clothing:"Clothing", handover:"Handover Notes", scan:"Scan a Document", settings:"Settings" };
+
+  return (
+    <div style={{ minHeight:"100vh", background:C.bg, fontFamily:F, maxWidth:430, margin:"0 auto", paddingBottom:32 }}>
+      <div style={{ background:"linear-gradient(170deg, #7C3AED 0%, #EC4899 55%, #1E293B 100%)", padding:"52px 20px 20px" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16 }}>
+          <div>
+            <div style={{ fontSize:28, fontWeight:900, color:"#fff", letterSpacing:-0.5 }}>{"\uD83C\uDFE0\uD83E\uDEF1\uD83C\uDFE0"} Baton</div>
+            <div style={{ fontSize:13, color:"rgba(255,255,255,0.75)", marginTop:2 }}>{today.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})}</div>
+          </div>
+          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+            <button onClick={()=>setShowSettings(true)} style={{ background:"rgba(255,255,255,0.15)", border:"none", borderRadius:20, padding:"6px 14px", fontSize:14, cursor:"pointer", color:"#fff", fontFamily:F, fontWeight:600 }}>
+              {"\u2699\uFE0F"}
+            </button>
+            <div style={{ background:"rgba(255,255,255,0.2)", borderRadius:20, padding:"6px 14px", fontSize:13, fontWeight:700, color:"#fff" }}>
+              {todayOwner==="dad"?`${dadEmoji} Dad`:`${mumEmoji} Mum`}
+            </div>
+          </div>
+        </div>
+        <div onClick={()=>setShowYear(true)} style={{ background:"rgba(255,255,255,0.08)", borderRadius:20, padding:"14px 16px", cursor:"pointer", border:"1px solid rgba(255,255,255,0.1)" }}>
+          <WeekRow schedule={thisWeek} label="This week" isCurrentWeek={true} todayIdx={dayIdx} extraMap={extraMap} sportDays={sportDays} holidayDateSet={holidayDateSet} holidayOwnerMap={holidayOwnerMap} dadEmoji={dadEmoji} mumEmoji={mumEmoji} events={events} />
+          <div style={{ height:1, background:"rgba(255,255,255,0.12)", margin:"10px 0" }} />
+          <WeekRow schedule={nextWeek} label="Next week" isCurrentWeek={false} todayIdx={-1} extraMap={extraMap} sportDays={sportDays} holidayDateSet={holidayDateSet} holidayOwnerMap={holidayOwnerMap} dadEmoji={dadEmoji} mumEmoji={mumEmoji} events={events} />
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"center", marginTop:10 }}>
+            <span style={{ fontFamily:F, fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.7)" }}>Tap to see full year</span>
+          </div>
+        </div>
+      </div>
+
+      {upcomingItems.length>0 && (
+        <div style={{ padding:"16px 16px 0" }}>
+          <SecLabel>Coming up</SecLabel>
+          <div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:4 }}>
+            {upcomingItems.map((item,i)=>{
+              const d=new Date(item.date);
+              const du=Math.ceil((d-today)/86400000);
+              const dayLabel=du===0?"Today":du===1?"Tomorrow":d.toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"});
+              return (
+                <div key={i} onClick={()=>setOpenScreen(item.screen)} style={{ flexShrink:0, background:item.colorLight, borderRadius:16, padding:"12px 14px", minWidth:120, cursor:"pointer", border:`2px solid ${item.color}33` }}>
+                  <div style={{ fontSize:22, marginBottom:5 }}>{item.emoji}</div>
+                  <div style={{ fontFamily:F, fontWeight:800, fontSize:12, color:C.text, marginBottom:3, lineHeight:1.3 }}>{item.label.length>18?item.label.slice(0,17)+"...":item.label}</div>
+                  <div style={{ fontFamily:F, fontSize:11, fontWeight:700, color:item.color }}>{dayLabel}</div>
+                  {du>0&&du<=7&&<div style={{ fontFamily:F, fontSize:10, color:item.color, opacity:0.75 }}>{du}d away</div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {dataLoading
+        ? <div style={{ padding:"32px 0" }}><Spinner /></div>
+        : (
+          <div style={{ padding:"20px 16px 0" }}>
+            <SecLabel>What do you need?</SecLabel>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+              {tiles.map(tile=>(
+                <div key={tile.id} onClick={()=>setOpenScreen(tile.id)} style={{ gridColumn:tile.wide?"1 / -1":"auto", background:C.card, borderRadius:20, padding:"18px 18px", boxShadow:"0 2px 16px rgba(124,58,237,0.07)", cursor:"pointer", position:"relative", display:"flex", flexDirection:tile.wide?"row":"column", alignItems:tile.wide?"center":"flex-start", gap:tile.wide?16:8 }}>
+                  <div style={{ width:44, height:44, borderRadius:14, background:tile.colorLight, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>{tile.emoji}</div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontFamily:F, fontWeight:800, fontSize:15, color:C.text }}>{tile.label}</div>
+                    <div style={{ fontFamily:F, fontSize:12, color:C.muted, marginTop:2 }}>{tile.subtitle}</div>
+                  </div>
+                  {tile.badge>0 && <div style={{ position:"absolute", top:12, right:12, background:C.orange, borderRadius:10, padding:"2px 8px", fontSize:11, fontWeight:800, color:"#fff" }}>{tile.badge}</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      }
+
+      {showYear && <Modal onClose={()=>setShowYear(false)} fullScreen><SheetHeader title="Full Year" onClose={()=>setShowYear(false)} /><YearView extras={extras} events={events} sportDays={sportDays} holidayDateSet={holidayDateSet} holidayOwnerMap={holidayOwnerMap} /></Modal>}
+
+      {showSettings && (
+        <Modal onClose={()=>setShowSettings(false)} fullScreen>
+          <SheetHeader title="Settings" onClose={()=>setShowSettings(false)} />
+          <SettingsScreen family={family} user={session.user} dadEmoji={dadEmoji} mumEmoji={mumEmoji} setDadEmoji={setDadEmoji} setMumEmoji={setMumEmoji} familyId={familyId} onSignOut={()=>{ setSession(null); setFamily(null); setFamilyId(null); }} />
+        </Modal>
+      )}
+
+      {openScreen && (
+        <Modal onClose={()=>setOpenScreen(null)} fullScreen>
+          <SheetHeader title={screenTitles[openScreen]||""} onClose={()=>setOpenScreen(null)} />
+          {openScreen==="profiles"  && <ProfilesScreen kids={kids} setKids={setKids} profiles={profiles} setProfiles={setProfiles} familyId={familyId} db={db} />}
+          {openScreen==="events"    && <EventsScreen kids={kids} events={events} setEvents={setEvents} sportDays={sportDays} setSportDays={setSportDays} familyId={familyId} db={db} />}
+          {openScreen==="extras"    && <ExtrasScreen kids={kids} extras={extras} setExtras={setExtras} familyId={familyId} db={db} />}
+          {openScreen==="holidays"  && <HolidaysScreen holidays={holidays} setHolidays={setHolidays} familyId={familyId} db={db} />}
+          {openScreen==="birthdays" && <BirthdaysScreen birthdays={birthdays} setBirthdays={setBirthdays} kids={kids} familyId={familyId} db={db} />}
+          {openScreen==="routines"  && <RoutinesScreen routines={routines} setRoutines={setRoutines} kids={kids} familyId={familyId} db={db} />}
+          {openScreen==="clothing"  && <ClothingScreen kids={kids} clothing={clothing} setClothing={setClothing} familyId={familyId} db={db} />}
+          {openScreen==="handover"  && <HandoverScreen notes={notes} setNotes={setNotes} kids={kids} familyId={familyId} db={db} />}
+          {openScreen==="scan"      && <ScanScreen kids={kids} setEvents={setEvents} onClose={()=>setOpenScreen(null)} familyId={familyId} db={db} />}
+        </Modal>
+      )}
+
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800;900&display=swap');
+        * { box-sizing:border-box; margin:0; padding:0; }
+        button:active { transform:scale(0.97); }
+        @keyframes spin { to { transform:rotate(360deg); } }
+        input[type="date"]::-webkit-calendar-picker-indicator,
+        input[type="time"]::-webkit-calendar-picker-indicator { opacity:0.4; cursor:pointer; }
+      `}</style>
+    </div>
+  );
+}
+
+// ── Profiles Screen ───────────────────────────────────────────────────────────
+function ProfilesScreen({ kids, setKids, profiles, setProfiles, familyId, db }) {
+  const [activeKid, setActiveKid] = useState(kids[0]?.id||null);
+  const [editingField, setEditingField] = useState(null);
+  const [tempVal, setTempVal] = useState("");
+  const [showAddKid, setShowAddKid] = useState(false);
+  const [showEditKid, setShowEditKid] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [kidForm, setKidForm] = useState({ name:"", age:"", avatar:"\uD83E\uDDD1", color:C.blue, colorLight:C.blueLight });
+
+  const kid = kids.find(k=>k.id===activeKid);
+  const p = profiles[activeKid]||{};
+
+  const saveField = async (key) => {
+    const prof = profiles[activeKid];
+    if (prof?.id) { await db.update("profiles", prof.id, {[key]:tempVal}); }
+    else { const np = await db.add("profiles", {kid_id:activeKid, [key]:tempVal}); if(np) setProfiles(prev=>({...prev,[activeKid]:np})); }
+    setProfiles(prev=>({...prev,[activeKid]:{...prev[activeKid],[key]:tempVal}}));
+    setEditingField(null);
+  };
+
+  const addKid = async () => {
+    if (!kidForm.name.trim()) return;
+    const newKid = await db.add("kids",{name:kidForm.name.trim(),age:parseInt(kidForm.age)||0,avatar:kidForm.avatar,color:kidForm.color,color_light:kidForm.colorLight});
+    if (newKid) { setKids(prev=>[...prev,newKid]); setActiveKid(newKid.id); }
+    setShowAddKid(false); setKidForm({name:"",age:"",avatar:"\uD83E\uDDD1",color:C.blue,colorLight:C.blueLight});
+  };
+
+  const saveEditKid = async () => {
+    if (!kidForm.name.trim()) return;
+    await db.update("kids",activeKid,{name:kidForm.name.trim(),age:parseInt(kidForm.age)||kid.age,avatar:kidForm.avatar,color:kidForm.color,color_light:kidForm.colorLight});
+    setKids(prev=>prev.map(k=>k.id===activeKid?{...k,name:kidForm.name.trim(),age:parseInt(kidForm.age)||k.age,avatar:kidForm.avatar,color:kidForm.color,color_light:kidForm.colorLight}:k));
+    setShowEditKid(false);
+  };
+
+  const deleteKid = async () => {
+    await db.remove("kids",activeKid);
+    const remaining = kids.filter(k=>k.id!==activeKid);
+    setKids(remaining); setActiveKid(remaining[0]?.id||null); setShowDeleteConfirm(false);
+  };
+
+  const KidFormUI = ({form,setForm,onSubmit,submitLabel,onDelete}) => (
+    <div style={{padding:"0 20px"}}>
+      <AvatarPicker value={form.avatar} onChange={a=>setForm(p=>({...p,avatar:a}))} />
+      <div style={{marginBottom:14}}><div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Colour</div><div style={{display:"flex",gap:8}}>{PROFILE_COLORS.map(co=><button key={co.color} onClick={()=>setForm(p=>({...p,color:co.color,colorLight:co.colorLight}))} style={{width:36,height:36,borderRadius:10,border:form.color===co.color?`3px solid ${C.text}`:"3px solid transparent",background:co.color,cursor:"pointer"}} />)}</div></div>
+      <FieldInput label="Name" value={form.name} onChange={v=>setForm(p=>({...p,name:v}))} placeholder="e.g. Leo" />
+      <FieldInput label="Age" value={String(form.age)} onChange={v=>setForm(p=>({...p,age:v}))} type="number" placeholder="13" />
+      <PrimaryBtn onClick={onSubmit}>{submitLabel}</PrimaryBtn>
+      {onDelete && <DeleteBtn onClick={onDelete} />}
+      <GhostBtn onClick={()=>{setShowAddKid(false);setShowEditKid(false);}}>Cancel</GhostBtn>
+    </div>
+  );
+
+  if (!kid) return (
+    <div style={{padding:"32px 20px",textAlign:"center"}}>
+      <div style={{fontFamily:F,fontSize:15,color:C.muted,marginBottom:16}}>No profiles yet</div>
+      <PrimaryBtn onClick={()=>setShowAddKid(true)}>Add first profile</PrimaryBtn>
+      {showAddKid && <Modal onClose={()=>setShowAddKid(false)}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>Add profile</div><KidFormUI form={kidForm} setForm={setKidForm} onSubmit={addKid} submitLabel="Add profile" /></Modal>}
+    </div>
+  );
+
+  return (
+    <div style={{padding:"0 16px 32px"}}>
+      <div style={{paddingTop:8}}>
+        <div style={{display:"flex",gap:8,marginBottom:16,overflowX:"auto",paddingBottom:2}}>
+          {kids.map(k=><button key={k.id} onClick={()=>{setActiveKid(k.id);setEditingField(null);}} style={{flexShrink:0,padding:"8px 16px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,background:activeKid===k.id?k.color:(k.color_light||C.purpleLight),color:activeKid===k.id?"#fff":k.color}}>{k.avatar} {k.name}</button>)}
+          <button onClick={()=>{setKidForm({name:"",age:"",avatar:"\uD83E\uDDD1",color:C.blue,colorLight:C.blueLight});setShowAddKid(true);}} style={{flexShrink:0,padding:"8px 14px",borderRadius:14,border:`2px dashed ${C.purpleLight}`,background:"transparent",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,color:C.purple}}>+ Add</button>
+        </div>
+      </div>
+      <Card style={{marginBottom:16}}>
+        <div style={{display:"flex",alignItems:"center",gap:14}}>
+          <div style={{width:56,height:56,borderRadius:18,background:kid.color_light||C.purpleLight,display:"flex",alignItems:"center",justifyContent:"center",fontSize:30}}>{kid.avatar}</div>
+          <div style={{flex:1}}><div style={{fontFamily:F,fontWeight:900,fontSize:20,color:C.text}}>{kid.name}</div><div style={{fontFamily:F,fontSize:13,color:C.muted,marginTop:2}}>Age {kid.age}</div></div>
+          <button onClick={()=>{setKidForm({name:kid.name,age:String(kid.age),avatar:kid.avatar,color:kid.color,colorLight:kid.color_light||C.blueLight});setShowEditKid(true);}} style={{background:C.purpleLight,color:C.purple,border:"none",borderRadius:10,padding:"7px 14px",fontFamily:F,fontWeight:700,fontSize:13,cursor:"pointer"}}>Edit</button>
+        </div>
+      </Card>
+      {defaultSections.map(s=>(
+        <Card key={s.label}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}><span style={{width:32,height:32,borderRadius:10,background:s.colorLight,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:16}}>{s.emoji}</span><span style={{fontFamily:F,fontWeight:800,fontSize:14,color:s.color}}>{s.label}</span></div>
+          {s.rows.map(([label,key])=>(
+            <div key={key} style={{padding:"7px 0",borderBottom:`1px solid ${C.bg}`}}>
+              {editingField===`${activeKid}-${key}`
+                ? <div style={{display:"flex",gap:8,alignItems:"center"}}><input autoFocus value={tempVal} onChange={e=>setTempVal(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveField(key)} style={{flex:1,padding:"7px 10px",borderRadius:8,border:`2px solid ${s.color}`,fontFamily:F,fontSize:13,outline:"none",background:C.bg}} /><button onClick={()=>saveField(key)} style={{background:s.color,color:"#fff",border:"none",borderRadius:8,padding:"7px 12px",fontFamily:F,fontWeight:700,fontSize:12,cursor:"pointer"}}>Save</button></div>
+                : <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontFamily:F,fontSize:13,color:C.muted}}>{label}</span><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontFamily:F,fontSize:13,fontWeight:600,color:p[key]?C.text:C.muted}}>{p[key]||"—"}</span><button onClick={()=>{setTempVal(p[key]||"");setEditingField(`${activeKid}-${key}`);}} style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:C.muted,opacity:0.6}}>edit</button></div></div>}
+            </div>
+          ))}
+        </Card>
+      ))}
+      {showAddKid && <Modal onClose={()=>setShowAddKid(false)}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>Add profile</div><KidFormUI form={kidForm} setForm={setKidForm} onSubmit={addKid} submitLabel="Add profile" /></Modal>}
+      {showEditKid && <Modal onClose={()=>setShowEditKid(false)}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>Edit profile</div><KidFormUI form={kidForm} setForm={setKidForm} onSubmit={saveEditKid} submitLabel="Save changes" onDelete={kids.length>1?()=>setShowDeleteConfirm(true):null} /></Modal>}
+      {showDeleteConfirm && <Modal onClose={()=>setShowDeleteConfirm(false)}><div style={{padding:"20px 20px 0"}}><div style={{fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:8}}>Delete {kid.name}?</div><div style={{fontFamily:F,fontSize:14,color:C.muted,marginBottom:20}}>This will remove their profile and all their info.</div><PrimaryBtn onClick={deleteKid} bg={C.red}>Yes, delete</PrimaryBtn><GhostBtn onClick={()=>setShowDeleteConfirm(false)}>Cancel</GhostBtn></div></Modal>}
+    </div>
+  );
+}
+
+// ── Events Screen ─────────────────────────────────────────────────────────────
+function EventsScreen({ kids, events, setEvents, sportDays, setSportDays, familyId, db }) {
+  const today = new Date();
+  const [mode, setMode] = useState("events");
+  const [showAdd, setShowAdd] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({kidIds:[],title:"",date:"",time:"",who:"dad",emoji:PIN,type:"other"});
+  const [sportForm, setSportForm] = useState({kidId:kids[0]?.id,label:"",emoji:"\u26BD",dayOfWeek:1,time:"",color:C.blue,colorLight:C.blueLight});
+  const [error, setError] = useState("");
+  const colorOptions = [{color:C.blue,colorLight:C.blueLight},{color:C.pink,colorLight:C.pinkLight},{color:C.teal,colorLight:C.tealLight},{color:C.orange,colorLight:C.orangeLight},{color:C.purple,colorLight:C.purpleLight},{color:C.green,colorLight:C.greenLight}];
+
+  const submitEvent = async () => {
+    if (!form.title.trim()||!form.date||form.kidIds.length===0){setError("Please fill in title, date and select kids");return;}
+    setError("");
+    const kidUUIDs = form.kidIds;
+    if (editing) { await db.update("events",editing,{...form,kid_ids:kidUUIDs}); setEvents(prev=>prev.map(e=>e.id===editing?{...e,...form,kid_ids:kidUUIDs}:e)); }
+    else { const ne=await db.add("events",{...form,kid_ids:kidUUIDs}); if(ne) setEvents(prev=>[...prev,ne]); }
+    setShowAdd(false); setEditing(null);
+  };
+
+  const submitSport = async () => {
+    if (!sportForm.label.trim()){setError("Please add a name");return;}
+    setError("");
+    const data = {...sportForm, kid_id:sportForm.kidId, day_of_week:sportForm.dayOfWeek, color_light:sportForm.colorLight};
+    if (editing) { await db.update("sport_days",editing,data); setSportDays(prev=>prev.map(s=>s.id===editing?{...s,...data}:s)); }
+    else { const ns=await db.add("sport_days",data); if(ns) setSportDays(prev=>[...prev,ns]); }
+    setShowAdd(false); setEditing(null);
+  };
+
+  return (
+    <div style={{padding:"0 16px 32px"}}>
+      <div style={{display:"flex",gap:10,margin:"12px 0 16px"}}>
+        {[{id:"events",label:"Events"},{id:"sport",label:"Activities"}].map(m=><button key={m.id} onClick={()=>setMode(m.id)} style={{flex:1,padding:"10px 0",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:13,background:mode===m.id?C.purple:C.purpleLight,color:mode===m.id?"#fff":C.purple}}>{m.label}</button>)}
+      </div>
+      {mode==="events" && <>
+        {[...events].sort((a,b)=>a.date.localeCompare(b.date)).map(ev=>{
+          const evKids=kids.filter(k=>(ev.kid_ids||[]).includes(k.id));
+          const d=new Date(ev.date); const du=Math.ceil((d-today)/86400000);
+          const et=eventTypes.find(t=>t.id===ev.type)||eventTypes[3];
+          return (<Card key={ev.id} onClick={()=>{setForm({...ev,kidIds:ev.kid_ids||[]});setEditing(ev.id);setShowAdd(true);}}>
+            <div style={{display:"flex",alignItems:"flex-start",gap:14}}>
+              <div style={{width:44,height:44,borderRadius:14,background:et.colorLight,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{ev.emoji}</div>
+              <div style={{flex:1}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><span style={{fontFamily:F,fontWeight:800,fontSize:15,color:C.text}}>{ev.title}</span><Chip text={du<0?"Past":du===0?"Today":du===1?"Tomorrow":`${du}d`} color={du<0?C.muted:du<=3?C.orange:C.teal} colorLight={du<0?"#F3F4F6":du<=3?C.orangeLight:C.tealLight} /></div>
+                <div style={{fontFamily:F,fontSize:12,color:C.muted,marginBottom:6}}>{d.toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})}{ev.time?` at ${ev.time}`:""}</div>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{evKids.map(k=><Chip key={k.id} text={k.name} color={k.color} colorLight={k.color_light||C.purpleLight} />)}<Chip text={ev.who==="dad"?"Dad taking":"Mum taking"} color={ev.who==="dad"?C.blue:C.pink} colorLight={ev.who==="dad"?C.blueLight:C.pinkLight} /></div>
+              </div>
+            </div>
+          </Card>);
+        })}
+        {events.length===0 && <div style={{textAlign:"center",padding:"24px 0",fontFamily:F,fontSize:14,color:C.muted}}>No events yet</div>}
+        <button onClick={()=>{setForm({kidIds:[],title:"",date:"",time:"",who:"dad",emoji:PIN,type:"other"});setError("");setEditing(null);setShowAdd(true);}} style={{width:"100%",padding:"14px 0",borderRadius:16,border:`2px dashed ${C.purpleLight}`,background:"transparent",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,color:C.purple,marginTop:4}}>+ Add event</button>
+      </>}
+      {mode==="sport" && <>
+        {sportDays.map(sd=>{const k=kids.find(k=>k.id===sd.kid_id);return(<Card key={sd.id} onClick={()=>{setSportForm({...sd,kidId:sd.kid_id,dayOfWeek:sd.day_of_week,colorLight:sd.color_light||C.blueLight});setEditing(sd.id);setShowAdd(true);}} style={{display:"flex",alignItems:"center",gap:14}}><div style={{width:44,height:44,borderRadius:14,background:sd.color_light||C.blueLight,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>{sd.emoji}</div><div style={{flex:1}}><div style={{fontFamily:F,fontWeight:700,fontSize:15,color:C.text}}>{sd.label}</div><div style={{fontFamily:F,fontSize:12,color:C.muted}}>{DAY_NAMES[sd.day_of_week]}s{sd.time?` at ${sd.time}`:""}</div></div>{k&&<Chip text={k.name} color={k.color} colorLight={k.color_light||C.purpleLight} />}</Card>);})}
+        <button onClick={()=>{setSportForm({kidId:kids[0]?.id,label:"",emoji:"\u26BD",dayOfWeek:1,time:"",color:C.blue,colorLight:C.blueLight});setError("");setEditing(null);setShowAdd(true);}} style={{width:"100%",padding:"14px 0",borderRadius:16,border:`2px dashed ${C.purpleLight}`,background:"transparent",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,color:C.purple,marginTop:4}}>+ Add activity</button>
+      </>}
+      {showAdd && mode==="events" && <Modal onClose={()=>{setShowAdd(false);setEditing(null);setError("");}}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>{editing?"Edit event":"New event"}</div><div style={{padding:"0 20px"}}><FieldInput label="Title" value={form.title} onChange={v=>setForm(p=>({...p,title:v}))} placeholder="e.g. Parents Evening" /><div style={{marginBottom:14}}><div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Type</div><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{eventTypes.map(t=><button key={t.id} onClick={()=>setForm(p=>({...p,type:t.id,emoji:t.emoji}))} style={{padding:"7px 12px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:12,background:form.type===t.id?t.color:t.colorLight,color:form.type===t.id?"#fff":t.color}}>{t.emoji} {t.label}</button>)}</div></div><div style={{marginBottom:14}}><div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Which kids?</div><div style={{display:"flex",gap:8}}>{kids.map(k=><button key={k.id} onClick={()=>setForm(p=>({...p,kidIds:p.kidIds.includes(k.id)?p.kidIds.filter(id=>id!==k.id):[...p.kidIds,k.id]}))} style={{flex:1,padding:"10px 0",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,background:form.kidIds.includes(k.id)?k.color:(k.color_light||C.purpleLight),color:form.kidIds.includes(k.id)?"#fff":k.color}}>{k.avatar} {k.name}</button>)}</div></div><FieldInput label="Date" value={form.date} onChange={v=>setForm(p=>({...p,date:v}))} type="date" /><FieldInput label="Time (optional)" value={form.time||""} onChange={v=>setForm(p=>({...p,time:v}))} type="time" /><div style={{marginBottom:14}}><div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Who is taking them?</div><div style={{display:"flex",gap:8}}>{["dad","mum"].map(pw=><button key={pw} onClick={()=>setForm(prev=>({...prev,who:pw}))} style={{flex:1,padding:"10px 0",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,background:form.who===pw?(pw==="dad"?C.blue:C.pink):(pw==="dad"?C.blueLight:C.pinkLight),color:form.who===pw?"#fff":(pw==="dad"?C.blue:C.pink)}}>{pw==="dad"?"Dad":"Mum"}</button>)}</div></div>{error&&<div style={{background:C.redLight,color:C.red,borderRadius:12,padding:"10px 14px",fontFamily:F,fontSize:13,fontWeight:600,marginBottom:10}}>{error}</div>}<PrimaryBtn onClick={submitEvent}>{editing?"Save changes":"Add event"}</PrimaryBtn>{editing&&<DeleteBtn onClick={async()=>{await db.remove("events",editing);setEvents(prev=>prev.filter(e=>e.id!==editing));setEditing(null);setShowAdd(false);}} />}<GhostBtn onClick={()=>{setShowAdd(false);setEditing(null);setError("");}}>Cancel</GhostBtn></div></Modal>}
+      {showAdd && mode==="sport" && <Modal onClose={()=>{setShowAdd(false);setEditing(null);setError("");}}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>{editing?"Edit activity":"New activity"}</div><div style={{padding:"0 20px"}}><FieldInput label="Activity name" value={sportForm.label} onChange={v=>setSportForm(p=>({...p,label:v}))} placeholder="e.g. Football training" /><FieldInput label="Emoji" value={sportForm.emoji} onChange={v=>setSportForm(p=>({...p,emoji:v}))} placeholder="⚽" /><div style={{marginBottom:14}}><div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Which kid?</div><div style={{display:"flex",gap:8}}>{kids.map(k=><button key={k.id} onClick={()=>setSportForm(p=>({...p,kidId:k.id}))} style={{flex:1,padding:"10px 0",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,background:sportForm.kidId===k.id?k.color:(k.color_light||C.purpleLight),color:sportForm.kidId===k.id?"#fff":k.color}}>{k.avatar} {k.name}</button>)}</div></div><div style={{marginBottom:14}}><div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Day of week</div><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>{DAY_NAMES.map((d,i)=><button key={i} onClick={()=>setSportForm(p=>({...p,dayOfWeek:i}))} style={{padding:"8px 10px",borderRadius:10,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:12,background:sportForm.dayOfWeek===i?C.purple:C.purpleLight,color:sportForm.dayOfWeek===i?"#fff":C.purple}}>{d}</button>)}</div></div><FieldInput label="Time (optional)" value={sportForm.time||""} onChange={v=>setSportForm(p=>({...p,time:v}))} type="time" /><div style={{marginBottom:14}}><div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Colour</div><div style={{display:"flex",gap:8}}>{colorOptions.map(co=><button key={co.color} onClick={()=>setSportForm(p=>({...p,color:co.color,colorLight:co.colorLight}))} style={{width:32,height:32,borderRadius:10,border:sportForm.color===co.color?`3px solid ${C.text}`:"3px solid transparent",background:co.color,cursor:"pointer"}} />)}</div></div>{error&&<div style={{background:C.redLight,color:C.red,borderRadius:12,padding:"10px 14px",fontFamily:F,fontSize:13,fontWeight:600,marginBottom:10}}>{error}</div>}<PrimaryBtn onClick={submitSport}>{editing?"Save changes":"Add activity"}</PrimaryBtn>{editing&&<DeleteBtn onClick={async()=>{await db.remove("sport_days",editing);setSportDays(prev=>prev.filter(s=>s.id!==editing));setEditing(null);setShowAdd(false);}} />}<GhostBtn onClick={()=>{setShowAdd(false);setEditing(null);setError("");}}>Cancel</GhostBtn></div></Modal>}
+    </div>
+  );
+}
+
+// ── Extras/Swaps Screen ───────────────────────────────────────────────────────
+function ExtrasScreen({ kids, extras, setExtras, familyId, db }) {
+  const [showNew, setShowNew] = useState(false);
+  const [editingReq, setEditingReq] = useState(null);
+  const [respondingTo, setRespondingTo] = useState(null);
+  const [responseText, setResponseText] = useState("");
+  const [newReq, setNewReq] = useState({type:"want_extra",from_parent:"dad",kidIds:[],date:"",time:"",reason:""});
+  const [filter, setFilter] = useState("all");
+  const [error, setError] = useState("");
+
+  const respond = async (id, status) => {
+    await db.update("extras", id, {status, response:responseText});
+    setExtras(prev=>prev.map(e=>e.id===id?{...e,status,response:responseText}:e));
+    setRespondingTo(null); setResponseText("");
+  };
+
+  const submitNew = async () => {
+    if (!newReq.date||newReq.kidIds.length===0||!newReq.reason.trim()){setError("Please fill in all fields");return;}
+    setError("");
+    const ne = await db.add("extras",{...newReq,from_parent:newReq.from_parent,kid_ids:newReq.kidIds,status:"pending",response:""});
+    if (ne) setExtras(prev=>[...prev,ne]);
+    setNewReq({type:"want_extra",from_parent:"dad",kidIds:[],date:"",time:"",reason:""}); setShowNew(false);
+  };
+
+  const saveEdit = async () => {
+    if (!editingReq.date||editingReq.kidIds.length===0||!editingReq.reason.trim()){setError("Please fill in all fields");return;}
+    setError("");
+    await db.update("extras",editingReq.id,{...editingReq,kid_ids:editingReq.kidIds});
+    setExtras(prev=>prev.map(e=>e.id===editingReq.id?{...editingReq,kid_ids:editingReq.kidIds}:e));
+    setEditingReq(null);
+  };
+
+  const filtered = filter==="all"?extras:extras.filter(e=>e.status===filter);
+  const pendingCount = extras.filter(e=>e.status==="pending").length;
+
+  const ReqForm = ({req,setReq}) => (
+    <div style={{padding:"0 20px"}}>
+      <div style={{marginBottom:14}}><div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Type</div><div style={{display:"flex",gap:8}}>{Object.entries(typeConfig).map(([id,tc])=><button key={id} onClick={()=>setReq(p=>({...p,type:id}))} style={{flex:1,padding:"10px 6px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:12,background:req.type===id?C.purple:C.purpleLight,color:req.type===id?"#fff":C.purple}}>{tc.label}</button>)}</div></div>
+      <div style={{marginBottom:14}}><div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>From</div><div style={{display:"flex",gap:8}}>{["dad","mum"].map(pw=><button key={pw} onClick={()=>setReq(prev=>({...prev,from_parent:pw}))} style={{flex:1,padding:"10px 0",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,background:req.from_parent===pw?(pw==="dad"?C.blue:C.pink):(pw==="dad"?C.blueLight:C.pinkLight),color:req.from_parent===pw?"#fff":(pw==="dad"?C.blue:C.pink)}}>{pw==="dad"?"Dad":"Mum"}</button>)}</div></div>
+      <div style={{marginBottom:14}}><div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Which kids?</div><div style={{display:"flex",gap:8}}>{kids.map(k=><button key={k.id} onClick={()=>setReq(p=>({...p,kidIds:p.kidIds.includes(k.id)?p.kidIds.filter(id=>id!==k.id):[...p.kidIds,k.id]}))} style={{flex:1,padding:"10px 0",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,background:req.kidIds.includes(k.id)?k.color:(k.color_light||C.purpleLight),color:req.kidIds.includes(k.id)?"#fff":k.color}}>{k.avatar} {k.name}</button>)}</div></div>
+      <FieldInput label="Date" value={req.date} onChange={v=>setReq(p=>({...p,date:v}))} type="date" />
+      <FieldInput label="Time (optional)" value={req.time||""} onChange={v=>setReq(p=>({...p,time:v}))} type="time" />
+      <FieldTextarea label="Reason" value={req.reason||""} onChange={v=>setReq(p=>({...p,reason:v}))} placeholder="What is the occasion?" />
+      {error&&<div style={{background:C.redLight,color:C.red,borderRadius:12,padding:"10px 14px",fontFamily:F,fontSize:13,fontWeight:600,marginBottom:10}}>{error}</div>}
+    </div>
+  );
+
+  return (
+    <div style={{padding:"0 16px 32px"}}>
+      <div style={{display:"flex",gap:7,margin:"12px 0 16px",overflowX:"auto",paddingBottom:2}}>
+        {[{id:"all",label:"All"},{id:"pending",label:pendingCount?`Pending (${pendingCount})`:"Pending"},{id:"accepted",label:"Accepted"},{id:"declined",label:"Declined"}].map(f=><button key={f.id} onClick={()=>setFilter(f.id)} style={{flexShrink:0,padding:"8px 14px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:12,background:filter===f.id?C.purple:C.purpleLight,color:filter===f.id?"#fff":C.purple}}>{f.label}</button>)}
+      </div>
+      {filtered.length===0&&<div style={{textAlign:"center",padding:"32px 0",fontFamily:F,fontSize:14,color:C.muted}}>No requests here</div>}
+      {[...filtered].sort((a,b)=>a.date.localeCompare(b.date)).map(req=>{
+        const sc=statusConfig[req.status]; const tc=typeConfig[req.type];
+        const reqKids=kids.filter(k=>(req.kid_ids||[]).includes(k.id));
+        const d=new Date(req.date); const du=Math.ceil((d-new Date())/86400000);
+        const dateStr=d.toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"});
+        return (
+          <Card key={req.id} style={{borderLeft:`4px solid ${sc?.color||C.muted}`}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+              <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:20}}>{tc?.emoji}</span><div><div style={{fontFamily:F,fontWeight:800,fontSize:14,color:C.text}}>{tc?.label}</div><div style={{fontFamily:F,fontSize:11,color:C.muted}}>{tc?.desc(req.from_parent)}</div></div></div>
+              <div style={{display:"flex",alignItems:"center",gap:8}}><button onClick={()=>{setEditingReq({...req,kidIds:req.kid_ids||[]});setError("");}} style={{background:C.purpleLight,color:C.purple,border:"none",borderRadius:8,padding:"4px 10px",fontFamily:F,fontSize:11,fontWeight:700,cursor:"pointer"}}>Edit</button><Chip text={`${sc?.emoji} ${sc?.label}`} color={sc?.color||C.muted} colorLight={sc?.colorLight||"#F3F4F6"} /></div>
+            </div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
+              <Chip text={du<0?dateStr:du===0?"Today":du===1?`Tomorrow - ${dateStr}`:`${du}d - ${dateStr}`} color={du>=0&&du<=2?C.orange:C.teal} colorLight={du>=0&&du<=2?C.orangeLight:C.tealLight} />
+              {req.time&&<Chip text={req.time} color={C.purple} colorLight={C.purpleLight} />}
+              {reqKids.map(k=><Chip key={k.id} text={`${k.avatar} ${k.name}`} color={k.color} colorLight={k.color_light||C.purpleLight} />)}
+            </div>
+            <div style={{background:C.bg,borderRadius:12,padding:"10px 12px",marginBottom:10,fontFamily:F,fontSize:13,color:C.text,lineHeight:1.5}}>{req.reason}</div>
+            {req.response?<div style={{background:req.status==="accepted"?C.greenLight:C.redLight,borderRadius:12,padding:"10px 12px",marginBottom:10,fontFamily:F,fontSize:13,color:req.status==="accepted"?C.green:C.red,lineHeight:1.5}}>{req.response}</div>:null}
+            {req.status==="pending"&&(respondingTo===req.id
+              ?<div><FieldTextarea label="Comment (optional)" value={responseText} onChange={setResponseText} placeholder="e.g. No problem!" /><div style={{display:"flex",gap:10}}><button onClick={()=>respond(req.id,"accepted")} style={{flex:1,padding:"12px 0",borderRadius:14,border:"none",cursor:"pointer",background:C.green,color:"#fff",fontFamily:F,fontWeight:800,fontSize:14}}>Accept</button><button onClick={()=>respond(req.id,"declined")} style={{flex:1,padding:"12px 0",borderRadius:14,border:"none",cursor:"pointer",background:C.red,color:"#fff",fontFamily:F,fontWeight:800,fontSize:14}}>Decline</button></div><button onClick={()=>setRespondingTo(null)} style={{width:"100%",marginTop:8,padding:"10px 0",borderRadius:14,border:`2px solid ${C.purpleLight}`,background:"transparent",fontFamily:F,fontWeight:700,fontSize:13,color:C.muted,cursor:"pointer"}}>Cancel</button></div>
+              :<button onClick={()=>setRespondingTo(req.id)} style={{width:"100%",padding:"12px 0",borderRadius:14,border:"none",cursor:"pointer",background:`linear-gradient(135deg, ${C.purple}, ${C.pink})`,color:"#fff",fontFamily:F,fontWeight:800,fontSize:14}}>Respond</button>
+            )}
+          </Card>
+        );
+      })}
+      <button onClick={()=>{setShowNew(true);setError("");}} style={{width:"100%",padding:"14px 0",borderRadius:16,border:`2px dashed ${C.purpleLight}`,background:"transparent",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,color:C.purple,marginTop:4}}>+ New request</button>
+      {showNew&&<Modal onClose={()=>{setShowNew(false);setError("");}}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>New request</div><ReqForm req={newReq} setReq={setNewReq} /><div style={{padding:"0 20px"}}><PrimaryBtn onClick={submitNew}>Send request</PrimaryBtn><GhostBtn onClick={()=>{setShowNew(false);setError("");}}>Cancel</GhostBtn></div></Modal>}
+      {editingReq&&<Modal onClose={()=>{setEditingReq(null);setError("");}}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>Edit request</div><ReqForm req={editingReq} setReq={setEditingReq} /><div style={{padding:"0 20px"}}><PrimaryBtn onClick={saveEdit}>Save changes</PrimaryBtn><DeleteBtn onClick={async()=>{await db.remove("extras",editingReq.id);setExtras(prev=>prev.filter(e=>e.id!==editingReq.id));setEditingReq(null);}} /><GhostBtn onClick={()=>{setEditingReq(null);setError("");}}>Cancel</GhostBtn></div></Modal>}
+    </div>
+  );
+}
+
+// ── Holidays Screen ───────────────────────────────────────────────────────────
+function HolidaysScreen({ holidays, setHolidays, familyId, db }) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState({name:"",start_date:"",end_date:"",dad_days:[],emoji:"\uD83C\uDFD6\uFE0F"});
+  const [error, setError] = useState("");
+
+  const submit = async () => {
+    if (!form.name.trim()||!form.start_date||!form.end_date){setError("Please fill in name and dates");return;}
+    if (new Date(form.end_date)<new Date(form.start_date)){setError("End must be after start");return;}
+    setError("");
+    if (editingId){ await db.update("holidays",editingId,form); setHolidays(prev=>prev.map(h=>h.id===editingId?{...h,...form}:h)); }
+    else { const nh=await db.add("holidays",form); if(nh) setHolidays(prev=>[...prev,nh]); }
+    setShowAdd(false); setEditingId(null);
+  };
+
+  const getStatus = h => { const today=new Date(),s=new Date(h.start_date),e=new Date(h.end_date); if(today<s) return {label:`In ${Math.ceil((s-today)/86400000)}d`,color:C.teal,colorLight:C.tealLight}; if(today>e) return {label:"Done",color:C.muted,colorLight:"#F3F4F6"}; return {label:"Now!",color:C.green,colorLight:C.greenLight}; };
+  const getDuration = h => { const n=Math.round((new Date(h.end_date)-new Date(h.start_date))/86400000)+1; return n===1?"1 day":`${n} days`; };
+
+  return (
+    <div style={{padding:"0 16px 32px"}}>
+      {[...holidays].sort((a,b)=>a.start_date.localeCompare(b.start_date)).map(h=>{const status=getStatus(h);return(
+        <Card key={h.id}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}><div style={{width:48,height:48,borderRadius:16,background:C.yellowLight,display:"flex",alignItems:"center",justifyContent:"center",fontSize:26}}>{h.emoji}</div><div><div style={{fontFamily:F,fontWeight:800,fontSize:16,color:C.text}}>{h.name}</div><div style={{fontFamily:F,fontSize:12,color:C.muted,marginTop:2}}>{new Date(h.start_date).toLocaleDateString("en-GB",{day:"numeric",month:"short"})} to {new Date(h.end_date).toLocaleDateString("en-GB",{day:"numeric",month:"short"})} ({getDuration(h)})</div></div></div>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}><Chip text={status.label} color={status.color} colorLight={status.colorLight} /><button onClick={()=>{setForm({name:h.name,start_date:h.start_date,end_date:h.end_date,dad_days:h.dad_days||[],emoji:h.emoji});setEditingId(h.id);setShowAdd(true);}} style={{background:C.purpleLight,color:C.purple,border:"none",borderRadius:8,padding:"5px 10px",fontFamily:F,fontSize:12,fontWeight:700,cursor:"pointer"}}>Edit</button></div>
+          </div>
+          <div style={{background:C.yellowLight,borderRadius:10,padding:"8px 12px",fontFamily:F,fontSize:12,color:C.yellow,fontWeight:600,textAlign:"center"}}>Default schedule applies during this period</div>
+        </Card>
+      );})}
+      {holidays.length===0&&<div style={{textAlign:"center",padding:"40px 0",fontFamily:F,fontSize:14,color:C.muted}}>No holidays added yet</div>}
+      <button onClick={()=>{setForm({name:"",start_date:"",end_date:"",dad_days:[],emoji:"\uD83C\uDFD6\uFE0F"});setError("");setEditingId(null);setShowAdd(true);}} style={{width:"100%",padding:"14px 0",borderRadius:16,border:`2px dashed ${C.yellowLight}`,background:"transparent",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,color:C.yellow,marginTop:4}}>+ Add holiday period</button>
+      {showAdd&&<Modal onClose={()=>{setShowAdd(false);setEditingId(null);setError("");}}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>{editingId?"Edit holiday":"New holiday"}</div><div style={{padding:"0 20px"}}><div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>{HOLIDAY_EMOJIS.map((e,i)=><button key={i} onClick={()=>setForm(p=>({...p,emoji:e}))} style={{width:40,height:40,borderRadius:12,border:form.emoji===e?`3px solid ${C.purple}`:"3px solid transparent",background:C.purpleLight,fontSize:22,cursor:"pointer"}}>{e}</button>)}</div><FieldInput label="Holiday name" value={form.name} onChange={v=>setForm(p=>({...p,name:v}))} placeholder="e.g. Summer Holidays" /><FieldInput label="Start date" value={form.start_date} onChange={v=>setForm(p=>({...p,start_date:v}))} type="date" /><FieldInput label="End date" value={form.end_date} onChange={v=>setForm(p=>({...p,end_date:v}))} type="date" />{error&&<div style={{background:C.redLight,color:C.red,borderRadius:12,padding:"10px 14px",fontFamily:F,fontSize:13,fontWeight:600,marginBottom:10}}>{error}</div>}<PrimaryBtn onClick={submit}>{editingId?"Save changes":"Add holiday"}</PrimaryBtn>{editingId&&<DeleteBtn onClick={async()=>{await db.remove("holidays",editingId);setHolidays(prev=>prev.filter(h=>h.id!==editingId));setShowAdd(false);setEditingId(null);}} />}<GhostBtn onClick={()=>{setShowAdd(false);setEditingId(null);setError("");}}>Cancel</GhostBtn></div></Modal>}
+    </div>
+  );
+}
+
+// ── Birthdays Screen ──────────────────────────────────────────────────────────
+function BirthdaysScreen({ birthdays, setBirthdays, kids, familyId, db }) {
+  const today = new Date();
+  const [showAdd, setShowAdd] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState({kid_id:kids[0]?.id||null,name:"",date:"",emoji:CAKE,notes:""});
+  const [error, setError] = useState("");
+
+  const getNextBirthday = ds=>{ const [,m,d]=ds.split("-"); const t=new Date(today.getFullYear(),parseInt(m)-1,parseInt(d)); return t>=today?t:new Date(today.getFullYear()+1,parseInt(m)-1,parseInt(d)); };
+  const getDaysUntil = ds=>Math.ceil((getNextBirthday(ds)-today)/86400000);
+  const sorted = [...birthdays].sort((a,b)=>getDaysUntil(a.date)-getDaysUntil(b.date));
+
+  const submit = async () => {
+    if (!form.name.trim()||!form.date){setError("Please add a name and date");return;}
+    setError("");
+    if (editingId){ await db.update("birthdays",editingId,form); setBirthdays(prev=>prev.map(b=>b.id===editingId?{...b,...form}:b)); }
+    else { const nb=await db.add("birthdays",form); if(nb) setBirthdays(prev=>[...prev,nb]); }
+    setShowAdd(false); setEditingId(null);
+  };
+
+  return (
+    <div style={{padding:"0 16px 32px"}}>
+      {sorted.length===0&&<div style={{textAlign:"center",padding:"40px 0",fontFamily:F,fontSize:14,color:C.muted}}>No birthdays added yet</div>}
+      {sorted.map(b=>{const kid=kids.find(k=>k.id===b.kid_id); const du=getDaysUntil(b.date); const isToday=du===0; const isSoon=du<=7; const nextDate=getNextBirthday(b.date); const dateStr=nextDate.toLocaleDateString("en-GB",{day:"numeric",month:"long"}); return(
+        <Card key={b.id} style={{borderLeft:`4px solid ${isToday?C.orange:isSoon?C.pink:C.purple}`}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:b.notes?10:0}}>
+            <div style={{display:"flex",alignItems:"center",gap:12}}><div style={{width:48,height:48,borderRadius:16,background:kid?(kid.color_light||C.purpleLight):C.purpleLight,display:"flex",alignItems:"center",justifyContent:"center",fontSize:26}}>{b.emoji}</div><div><div style={{fontFamily:F,fontWeight:800,fontSize:16,color:C.text}}>{b.name}</div><div style={{fontFamily:F,fontSize:12,color:C.muted,marginTop:2}}>{dateStr}{kid?` (${kid.name})`:""}</div></div></div>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}><Chip text={isToday?"Today!":du===1?"Tomorrow!":`${du} days`} color={isToday?C.orange:isSoon?C.pink:C.purple} colorLight={isToday?C.orangeLight:isSoon?C.pinkLight:C.purpleLight} /><button onClick={()=>{setForm({...b});setEditingId(b.id);setShowAdd(true);}} style={{background:C.purpleLight,color:C.purple,border:"none",borderRadius:8,padding:"5px 10px",fontFamily:F,fontSize:12,fontWeight:700,cursor:"pointer"}}>Edit</button></div>
+          </div>
+          {b.notes&&<div style={{background:C.bg,borderRadius:10,padding:"8px 12px",fontFamily:F,fontSize:13,color:C.text,marginTop:8}}>{b.notes}</div>}
+        </Card>
+      );})}
+      <button onClick={()=>{setForm({kid_id:kids[0]?.id||null,name:"",date:"",emoji:CAKE,notes:""});setError("");setEditingId(null);setShowAdd(true);}} style={{width:"100%",padding:"14px 0",borderRadius:16,border:`2px dashed ${C.purpleLight}`,background:"transparent",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,color:C.purple,marginTop:4}}>+ Add birthday</button>
+      {showAdd&&<Modal onClose={()=>{setShowAdd(false);setEditingId(null);setError("");}}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>{editingId?"Edit birthday":"Add birthday"}</div><div style={{padding:"0 20px"}}><div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>{BIRTHDAY_EMOJIS.map((e,i)=><button key={i} onClick={()=>setForm(p=>({...p,emoji:e}))} style={{width:40,height:40,borderRadius:12,border:form.emoji===e?`3px solid ${C.purple}`:"3px solid transparent",background:C.purpleLight,fontSize:22,cursor:"pointer"}}>{e}</button>)}</div><div style={{marginBottom:14}}><div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Whose birthday?</div><div style={{display:"flex",gap:8}}>{kids.map(k=><button key={k.id} onClick={()=>setForm(p=>({...p,kid_id:k.id}))} style={{flex:1,padding:"10px 0",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,background:form.kid_id===k.id?k.color:(k.color_light||C.purpleLight),color:form.kid_id===k.id?"#fff":k.color}}>{k.avatar} {k.name}</button>)}<button onClick={()=>setForm(p=>({...p,kid_id:null}))} style={{flex:1,padding:"10px 0",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:13,background:form.kid_id===null?C.purple:C.purpleLight,color:form.kid_id===null?"#fff":C.purple}}>Other</button></div></div><FieldInput label="Name" value={form.name} onChange={v=>setForm(p=>({...p,name:v}))} placeholder="e.g. Leo or Grandma" /><FieldInput label="Date" value={form.date} onChange={v=>setForm(p=>({...p,date:v}))} type="date" /><FieldTextarea label="Notes (optional)" value={form.notes||""} onChange={v=>setForm(p=>({...p,notes:v}))} placeholder="e.g. Likes football" />{error&&<div style={{background:C.redLight,color:C.red,borderRadius:12,padding:"10px 14px",fontFamily:F,fontSize:13,fontWeight:600,marginBottom:10}}>{error}</div>}<PrimaryBtn onClick={submit}>{editingId?"Save changes":"Add birthday"}</PrimaryBtn>{editingId&&<DeleteBtn onClick={async()=>{await db.remove("birthdays",editingId);setBirthdays(prev=>prev.filter(b=>b.id!==editingId));setShowAdd(false);setEditingId(null);}} />}<GhostBtn onClick={()=>{setShowAdd(false);setEditingId(null);setError("");}}>Cancel</GhostBtn></div></Modal>}
+    </div>
+  );
+}
+
+// ── Routines Screen ───────────────────────────────────────────────────────────
+function RoutinesScreen({ routines, setRoutines, kids, familyId, db }) {
+  const [activeKid, setActiveKid] = useState(kids[0]?.id||null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState({title:"",type:"bedtime",items:[],emoji:"\uD83C\uDF19"});
+  const [newItem, setNewItem] = useState("");
+  const [error, setError] = useState("");
+  const kidRoutines = routines.filter(r=>r.kid_id===activeKid);
+
+  const addItem = () => { if (!newItem.trim()) return; setForm(p=>({...p,items:[...p.items,{id:Date.now(),text:newItem.trim()}]})); setNewItem(""); };
+
+  const submit = async () => {
+    if (!form.title.trim()){setError("Please add a title");return;}
+    if (form.items.length===0){setError("Please add at least one step");return;}
+    setError("");
+    const rt = ROUTINE_TYPES.find(t=>t.id===form.type);
+    const data = {...form, kid_id:activeKid, emoji:rt?rt.emoji:form.emoji, items:form.items};
+    if (editingId){ await db.update("routines",editingId,data); setRoutines(prev=>prev.map(r=>r.id===editingId?{...r,...data}:r)); }
+    else { const nr=await db.add("routines",data); if(nr) setRoutines(prev=>[...prev,nr]); }
+    setShowAdd(false); setEditingId(null);
+  };
+
+  return (
+    <div style={{padding:"0 16px 32px"}}>
+      <div style={{paddingTop:8}}><KidSwitcher kids={kids} activeKid={activeKid} setActiveKid={setActiveKid} /></div>
+      {kidRoutines.length===0&&<div style={{textAlign:"center",padding:"40px 0",fontFamily:F,fontSize:14,color:C.muted}}>No routines yet</div>}
+      {kidRoutines.map(r=>{const rt=ROUTINE_TYPES.find(t=>t.id===r.type)||ROUTINE_TYPES[3]; const items=Array.isArray(r.items)?r.items:[]; return(
+        <Card key={r.id}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}><div style={{width:40,height:40,borderRadius:12,background:rt.colorLight,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>{r.emoji}</div><div><div style={{fontFamily:F,fontWeight:800,fontSize:15,color:C.text}}>{r.title}</div><div style={{fontFamily:F,fontSize:11,color:C.muted}}>{rt.label} - {items.length} steps</div></div></div>
+            <button onClick={()=>{setForm({...r,items:[...items]});setNewItem("");setError("");setEditingId(r.id);setShowAdd(true);}} style={{background:C.purpleLight,color:C.purple,border:"none",borderRadius:8,padding:"5px 10px",fontFamily:F,fontSize:12,fontWeight:700,cursor:"pointer"}}>Edit</button>
+          </div>
+          {items.map((item,idx)=>(
+            <div key={item.id||idx} style={{display:"flex",alignItems:"center",gap:10,padding:"6px 0",borderBottom:`1px solid ${C.bg}`}}>
+              <div style={{width:22,height:22,borderRadius:6,background:rt.colorLight,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:F,fontSize:11,fontWeight:800,color:rt.color,flexShrink:0}}>{idx+1}</div>
+              <span style={{fontFamily:F,fontSize:14,color:C.text}}>{item.text}</span>
+            </div>
+          ))}
+        </Card>
+      );})}
+      <button onClick={()=>{setForm({title:"",type:"bedtime",items:[],emoji:"\uD83C\uDF19"});setNewItem("");setError("");setEditingId(null);setShowAdd(true);}} style={{width:"100%",padding:"14px 0",borderRadius:16,border:`2px dashed ${C.purpleLight}`,background:"transparent",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,color:C.purple,marginTop:4}}>+ Add routine</button>
+      {showAdd&&<Modal onClose={()=>{setShowAdd(false);setEditingId(null);setError("");}}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>{editingId?"Edit routine":"New routine"}</div><div style={{padding:"0 20px"}}><div style={{marginBottom:14}}><div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Type</div><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{ROUTINE_TYPES.map(t=><button key={t.id} onClick={()=>setForm(p=>({...p,type:t.id,emoji:t.emoji}))} style={{padding:"8px 14px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:13,background:form.type===t.id?t.color:t.colorLight,color:form.type===t.id?"#fff":t.color}}>{t.emoji} {t.label}</button>)}</div></div><FieldInput label="Routine name" value={form.title} onChange={v=>setForm(p=>({...p,title:v}))} placeholder="e.g. Bedtime routine" /><div style={{marginBottom:14}}><div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Steps</div>{form.items.map((item,idx)=>(<div key={item.id||idx} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}><div style={{width:24,height:24,borderRadius:6,background:C.purpleLight,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:F,fontSize:11,fontWeight:800,color:C.purple,flexShrink:0}}>{idx+1}</div><span style={{flex:1,fontFamily:F,fontSize:13,color:C.text}}>{item.text}</span><button onClick={()=>setForm(p=>({...p,items:p.items.filter(i=>i.id!==item.id)}))} style={{background:"none",border:"none",cursor:"pointer",color:C.red,fontSize:16,opacity:0.6}}>x</button></div>))}<div style={{display:"flex",gap:8}}><input value={newItem} onChange={e=>setNewItem(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addItem()} placeholder="e.g. Brush teeth" style={{flex:1,padding:"10px 14px",borderRadius:12,border:`2px solid ${C.purpleLight}`,outline:"none",fontFamily:F,fontSize:13,color:C.text,background:C.bg}} /><button onClick={addItem} style={{background:C.purple,color:"#fff",border:"none",borderRadius:12,padding:"10px 16px",fontFamily:F,fontWeight:700,fontSize:13,cursor:"pointer"}}>Add</button></div></div>{error&&<div style={{background:C.redLight,color:C.red,borderRadius:12,padding:"10px 14px",fontFamily:F,fontSize:13,fontWeight:600,marginBottom:10}}>{error}</div>}<PrimaryBtn onClick={submit}>{editingId?"Save changes":"Add routine"}</PrimaryBtn>{editingId&&<DeleteBtn onClick={async()=>{await db.remove("routines",editingId);setRoutines(prev=>prev.filter(r=>r.id!==editingId));setShowAdd(false);setEditingId(null);}} />}<GhostBtn onClick={()=>{setShowAdd(false);setEditingId(null);setError("");}}>Cancel</GhostBtn></div></Modal>}
+    </div>
+  );
+}
+
+// ── Clothing Screen ───────────────────────────────────────────────────────────
+function ClothingScreen({ kids, clothing, setClothing, familyId, db }) {
+  const [activeKid, setActiveKid] = useState(kids[0]?.id||null);
+  const [activeCategory, setActiveCategory] = useState("school");
+  const [showAdd, setShowAdd] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [newItem, setNewItem] = useState({item:"",emoji:"\uD83D\uDC55"});
+  const [editForm, setEditForm] = useState({item:"",emoji:""});
+
+  const toggle = async (item) => {
+    const newLoc = item.location==="dad"?"mum":"dad";
+    await db.update("clothing",item.id,{location:newLoc});
+    setClothing(prev=>prev.map(c=>c.id===item.id?{...c,location:newLoc}:c));
+  };
+
+  const filtered = clothing.filter(c=>c.kid_id===activeKid&&c.category===activeCategory);
+  const cat = clothingCategories.find(c=>c.id===activeCategory);
+
+  const addItem = async () => {
+    if (!newItem.item.trim()) return;
+    const nc = await db.add("clothing",{kid_id:activeKid,category:activeCategory,item:newItem.item,location:"dad",emoji:newItem.emoji||"\uD83D\uDC55"});
+    if (nc) setClothing(prev=>[...prev,nc]);
+    setNewItem({item:"",emoji:"\uD83D\uDC55"}); setShowAdd(false);
+  };
+
+  const saveEdit = async () => {
+    if (!editForm.item.trim()) return;
+    await db.update("clothing",editingItem,editForm);
+    setClothing(prev=>prev.map(c=>c.id===editingItem?{...c,...editForm}:c));
+    setEditingItem(null);
+  };
+
+  return (
+    <div style={{padding:"0 16px 32px"}}>
+      <div style={{paddingTop:8}}><KidSwitcher kids={kids} activeKid={activeKid} setActiveKid={setActiveKid} /></div>
+      <div style={{display:"flex",gap:7,marginBottom:16,overflowX:"auto",paddingBottom:2}}>
+        {clothingCategories.map(c=><button key={c.id} onClick={()=>setActiveCategory(c.id)} style={{flexShrink:0,padding:"8px 13px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:12,background:activeCategory===c.id?c.color:c.colorLight,color:activeCategory===c.id?"#fff":c.color}}>{c.emoji} {c.label}</button>)}
+      </div>
+      <SecLabel>Tap to flip location</SecLabel>
+      {filtered.length===0&&<div style={{textAlign:"center",padding:"24px 0",fontFamily:F,fontSize:14,color:C.muted}}>Nothing here yet</div>}
+      {filtered.map(item=>(
+        <Card key={item.id} onClick={()=>toggle(item)} style={{display:"flex",alignItems:"center",gap:14}}>
+          <div style={{width:44,height:44,borderRadius:14,background:item.location==="dad"?C.blueLight:C.pinkLight,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>{item.emoji}</div>
+          <div style={{flex:1,fontFamily:F,fontWeight:600,fontSize:15,color:C.text}}>{item.item}</div>
+          <button onClick={e=>{e.stopPropagation();setEditForm({item:item.item,emoji:item.emoji});setEditingItem(item.id);}} style={{background:C.purpleLight,color:C.purple,border:"none",borderRadius:8,padding:"5px 10px",fontFamily:F,fontSize:12,fontWeight:700,cursor:"pointer",marginRight:6}}>edit</button>
+          <div style={{background:item.location==="dad"?C.blueLight:C.pinkLight,borderRadius:20,padding:"5px 12px",fontFamily:F,fontWeight:700,fontSize:12,color:item.location==="dad"?C.blue:C.pink}}>{item.location==="dad"?"Dad":"Mum"}</div>
+        </Card>
+      ))}
+      <button onClick={()=>setShowAdd(true)} style={{width:"100%",padding:"14px 0",borderRadius:16,border:`2px dashed ${cat.colorLight}`,background:"transparent",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,color:cat.color,marginTop:4}}>+ Add {cat.label} item</button>
+      {showAdd&&<Modal onClose={()=>setShowAdd(false)}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:18}}>Add {cat.label} item</div><div style={{padding:"0 20px"}}><FieldInput label="Emoji" value={newItem.emoji} onChange={v=>setNewItem(p=>({...p,emoji:v}))} placeholder="👕" /><FieldInput label="Item name" value={newItem.item} onChange={v=>setNewItem(p=>({...p,item:v}))} placeholder="e.g. School jumper" /><PrimaryBtn onClick={addItem}>Add item</PrimaryBtn><GhostBtn onClick={()=>setShowAdd(false)}>Cancel</GhostBtn></div></Modal>}
+      {editingItem&&<Modal onClose={()=>setEditingItem(null)}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:18}}>Edit item</div><div style={{padding:"0 20px"}}><FieldInput label="Emoji" value={editForm.emoji} onChange={v=>setEditForm(p=>({...p,emoji:v}))} placeholder="👕" /><FieldInput label="Item name" value={editForm.item} onChange={v=>setEditForm(p=>({...p,item:v}))} placeholder="e.g. School jumper" /><PrimaryBtn onClick={saveEdit}>Save changes</PrimaryBtn><DeleteBtn onClick={async()=>{await db.remove("clothing",editingItem);setClothing(prev=>prev.filter(c=>c.id!==editingItem));setEditingItem(null);}} /><GhostBtn onClick={()=>setEditingItem(null)}>Cancel</GhostBtn></div></Modal>}
+    </div>
+  );
+}
+
+// ── Handover Screen ───────────────────────────────────────────────────────────
+function HandoverScreen({ notes, setNotes, kids, familyId, db }) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [filterKid, setFilterKid] = useState("all");
+  const [filterCat, setFilterCat] = useState("all");
+  const [form, setForm] = useState({from_parent:"dad",kid_ids:[],category:"general",note:""});
+  const [error, setError] = useState("");
+
+  const filtered = notes
+    .filter(n=>filterKid==="all"||(n.kid_ids||[]).includes(filterKid)||(n.kid_ids||[]).length===0)
+    .filter(n=>filterCat==="all"||n.category===filterCat);
+
+  const submit = async () => {
+    if (!form.note.trim()){setError("Please write a note");return;}
+    setError("");
+    const nn = await db.add("notes",{...form});
+    if (nn) setNotes(prev=>[nn,...prev]);
+    setForm({from_parent:"dad",kid_ids:[],category:"general",note:""}); setShowAdd(false);
+  };
+
+  const formatTime = ts => {
+    const diff=Math.floor((Date.now()-new Date(ts))/60000);
+    if(diff<1) return "Just now"; if(diff<60) return `${diff}m ago`;
+    const h=Math.floor(diff/60); if(h<24) return `${h}h ago`;
+    const d=Math.floor(h/24); if(d===1) return "Yesterday"; if(d<7) return `${d}d ago`;
+    return new Date(ts).toLocaleDateString("en-GB",{day:"numeric",month:"short"});
+  };
+
+  return (
+    <div style={{padding:"0 16px 32px"}}>
+      <div style={{display:"flex",gap:7,margin:"12px 0 8px",overflowX:"auto",paddingBottom:2}}>
+        <button onClick={()=>setFilterKid("all")} style={{flexShrink:0,padding:"7px 14px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:12,background:filterKid==="all"?C.purple:C.purpleLight,color:filterKid==="all"?"#fff":C.purple}}>All</button>
+        {kids.map(k=><button key={k.id} onClick={()=>setFilterKid(filterKid===k.id?"all":k.id)} style={{flexShrink:0,padding:"7px 14px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:12,background:filterKid===k.id?k.color:(k.color_light||C.purpleLight),color:filterKid===k.id?"#fff":k.color}}>{k.avatar} {k.name}</button>)}
+      </div>
+      <div style={{display:"flex",gap:7,marginBottom:16,overflowX:"auto",paddingBottom:2}}>
+        <button onClick={()=>setFilterCat("all")} style={{flexShrink:0,padding:"7px 14px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:12,background:filterCat==="all"?C.text:"#F3F4F6",color:filterCat==="all"?"#fff":C.muted}}>All types</button>
+        {noteCategories.map(cat=><button key={cat.id} onClick={()=>setFilterCat(filterCat===cat.id?"all":cat.id)} style={{flexShrink:0,padding:"7px 14px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:12,background:filterCat===cat.id?cat.color:cat.colorLight,color:filterCat===cat.id?"#fff":cat.color}}>{cat.emoji} {cat.label}</button>)}
+      </div>
+      {filtered.length===0&&<div style={{textAlign:"center",padding:"40px 0"}}><div style={{fontFamily:F,fontWeight:700,fontSize:16,color:C.text,marginBottom:6}}>No notes yet</div><div style={{fontFamily:F,fontSize:13,color:C.muted}}>Leave a note at each handover with health updates, reminders, or anything useful.</div></div>}
+      {filtered.map(n=>{const cat=noteCategories.find(c=>c.id===n.category)||noteCategories[0]; const noteKids=kids.filter(k=>(n.kid_ids||[]).includes(k.id)); return(
+        <Card key={n.id} style={{borderLeft:`4px solid ${cat.color}`}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:36,height:36,borderRadius:12,background:cat.colorLight,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>{cat.emoji}</div><div><div style={{fontFamily:F,fontWeight:800,fontSize:13,color:C.text}}>{cat.label}</div><div style={{fontFamily:F,fontSize:11,color:C.muted}}>From {n.from_parent==="dad"?"Dad":"Mum"} - {formatTime(n.created_at)}</div></div></div><div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"flex-end"}}>{noteKids.map(k=><Chip key={k.id} text={k.name} color={k.color} colorLight={k.color_light||C.purpleLight} />)}{noteKids.length===0&&<Chip text="General" color={C.muted} colorLight="#F3F4F6" />}</div></div>
+          <div style={{background:C.bg,borderRadius:12,padding:"12px 14px",fontFamily:F,fontSize:14,color:C.text,lineHeight:1.6}}>{n.note}</div>
+          <button onClick={async()=>{await db.remove("notes",n.id);setNotes(prev=>prev.filter(note=>note.id!==n.id));}} style={{marginTop:10,background:"none",border:"none",fontFamily:F,fontSize:12,color:C.muted,cursor:"pointer",opacity:0.6}}>Remove</button>
+        </Card>
+      );})}
+      <button onClick={()=>{setShowAdd(true);setError("");}} style={{width:"100%",padding:"14px 0",borderRadius:16,border:`2px dashed ${C.purpleLight}`,background:"transparent",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,color:C.purple,marginTop:4}}>+ Leave a handover note</button>
+      {showAdd&&<Modal onClose={()=>{setShowAdd(false);setError("");}}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>Handover note</div><div style={{padding:"0 20px"}}><div style={{marginBottom:14}}><div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>From</div><div style={{display:"flex",gap:8}}>{["dad","mum"].map(pw=><button key={pw} onClick={()=>setForm(prev=>({...prev,from_parent:pw}))} style={{flex:1,padding:"10px 0",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,background:form.from_parent===pw?(pw==="dad"?C.blue:C.pink):(pw==="dad"?C.blueLight:C.pinkLight),color:form.from_parent===pw?"#fff":(pw==="dad"?C.blue:C.pink)}}>{pw==="dad"?"Dad":"Mum"}</button>)}</div></div><div style={{marginBottom:14}}><div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>About (optional)</div><div style={{display:"flex",gap:8}}>{kids.map(k=><button key={k.id} onClick={()=>setForm(p=>({...p,kid_ids:p.kid_ids.includes(k.id)?p.kid_ids.filter(id=>id!==k.id):[...p.kid_ids,k.id]}))} style={{flex:1,padding:"10px 0",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,background:form.kid_ids.includes(k.id)?k.color:(k.color_light||C.purpleLight),color:form.kid_ids.includes(k.id)?"#fff":k.color}}>{k.avatar} {k.name}</button>)}</div></div><div style={{marginBottom:14}}><div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Type</div><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{noteCategories.map(cat=><button key={cat.id} onClick={()=>setForm(p=>({...p,category:cat.id}))} style={{padding:"7px 12px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:12,background:form.category===cat.id?cat.color:cat.colorLight,color:form.category===cat.id?"#fff":cat.color}}>{cat.emoji} {cat.label}</button>)}</div></div><FieldTextarea label="Note" value={form.note} onChange={v=>setForm(p=>({...p,note:v}))} placeholder="e.g. Leo has a cold, gave Calpol at 6pm." />{error&&<div style={{background:C.redLight,color:C.red,borderRadius:12,padding:"10px 14px",fontFamily:F,fontSize:13,fontWeight:600,marginBottom:10}}>{error}</div>}<PrimaryBtn onClick={submit}>Leave note</PrimaryBtn><GhostBtn onClick={()=>{setShowAdd(false);setError("");}}>Cancel</GhostBtn></div></Modal>}
+    </div>
+  );
+}
+
+// ── Scan Screen ───────────────────────────────────────────────────────────────
+function ScanScreen({ kids, setEvents, onClose, familyId, db }) {
+  const [image, setImage] = useState(null);
+  const [imageBase64, setImageBase64] = useState(null);
+  const [scanning, setScanning] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  const handleFile = file => { if(!file) return; setResult(null); setSaved(false); setError(""); setImage(URL.createObjectURL(file)); const reader=new FileReader(); reader.onload=()=>setImageBase64(reader.result.split(",")[1]); reader.readAsDataURL(file); };
+
+  const scan = async () => {
+    if (!imageBase64) return; setScanning(true); setResult(null); setError("");
+    try {
+      const today=new Date().toISOString().slice(0,10);
+      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:imageBase64}},{type:"text",text:`Extract the key event from this letter or document. Today is ${today}. Reply ONLY with JSON, no markdown:\n{"title":"short title","date":"YYYY-MM-DD or null","time":"HH:MM or empty","type":"medical|school|sport|other","emoji":"single emoji","who":"dad","kid_ids":[],"notes":"2-3 sentence summary"}`}]}]})});
+      const data=await res.json(); const raw=data.content.map(b=>b.text||"").join(""); const clean=raw.replace(/```json|```/g,"").trim(); setResult(JSON.parse(clean));
+    } catch(e) { setError("Could not read the document. Please try a clearer photo."); }
+    setScanning(false);
+  };
+
+  const saveToCalendar = async () => {
+    if (!result) return;
+    const kidIds = result.kid_ids&&result.kid_ids.length?result.kid_ids:[kids[0]?.id];
+    const ne = await db.add("events",{...result,kid_ids:kidIds});
+    if (ne) setEvents(prev=>[...prev,ne]);
+    setSaved(true); setTimeout(onClose,900);
+  };
+
+  const et = result?(eventTypes.find(t=>t.id===result.type)||eventTypes[3]):null;
+
+  return (
+    <div style={{padding:"0 16px 32px"}}>
+      <div style={{fontFamily:F,fontSize:14,color:C.muted,margin:"12px 0 16px",lineHeight:1.6}}>Photo a hospital letter, school trip form or appointment card. Baton will read it and add it to your calendar.</div>
+      <label style={{display:"block",cursor:"pointer"}}>
+        <input type="file" accept="image/*" capture="environment" onChange={e=>handleFile(e.target.files[0])} style={{display:"none"}} />
+        <div style={{border:`2px dashed ${image?C.purple:C.purpleLight}`,borderRadius:16,padding:"24px 16px",textAlign:"center",background:image?C.purpleLight:C.card}}>
+          {image?<img src={image} alt="scanned" style={{width:"100%",borderRadius:12,maxHeight:220,objectFit:"cover"}} />:<div><div style={{fontSize:36,marginBottom:8}}>{"\uD83D\uDCF8"}</div><div style={{fontFamily:F,fontWeight:700,fontSize:15,color:C.purple}}>Tap to take photo or upload</div><div style={{fontFamily:F,fontSize:12,color:C.muted,marginTop:4}}>Hospital letters, school trips, appointment cards...</div></div>}
+        </div>
+      </label>
+      {image&&!scanning&&!result&&<PrimaryBtn onClick={scan}>Scan document</PrimaryBtn>}
+      {image&&<GhostBtn onClick={()=>{setImage(null);setImageBase64(null);setResult(null);setSaved(false);setError("");}}>Choose different photo</GhostBtn>}
+      {scanning&&<Card style={{textAlign:"center",padding:"32px 20px",marginTop:12}}><div style={{fontFamily:F,fontWeight:700,fontSize:16,color:C.purple,marginBottom:6}}>Reading document...</div></Card>}
+      {error&&<Card style={{background:C.redLight,borderLeft:`4px solid ${C.red}`,marginTop:12}}><div style={{fontFamily:F,fontWeight:700,fontSize:14,color:C.red}}>{error}</div></Card>}
+      {result&&!saved&&<div style={{marginTop:16}}><SecLabel>Found this event</SecLabel><Card style={{borderLeft:`4px solid ${et?et.color:C.purple}`}}><div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}><div style={{width:48,height:48,borderRadius:16,background:et?et.colorLight:C.purpleLight,display:"flex",alignItems:"center",justifyContent:"center",fontSize:26}}>{result.emoji}</div><div><div style={{fontFamily:F,fontWeight:900,fontSize:17,color:C.text}}>{result.title}</div><div style={{fontFamily:F,fontSize:13,color:C.muted}}>{result.date?new Date(result.date).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"long",year:"numeric"}):"Date not found"}{result.time?` at ${result.time}`:""}</div></div></div>{result.notes&&<div style={{background:C.bg,borderRadius:12,padding:"12px 14px",marginBottom:12,fontFamily:F,fontSize:13,color:C.text,lineHeight:1.6}}>{result.notes}</div>}<div style={{marginBottom:14}}><div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Which kids?</div><div style={{display:"flex",gap:8}}>{kids.map(k=><button key={k.id} onClick={()=>setResult(p=>({...p,kid_ids:(p.kid_ids||[]).includes(k.id)?(p.kid_ids||[]).filter(id=>id!==k.id):[...(p.kid_ids||[]),k.id]}))} style={{flex:1,padding:"10px 0",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,background:(result.kid_ids||[]).includes(k.id)?k.color:(k.color_light||C.purpleLight),color:(result.kid_ids||[]).includes(k.id)?"#fff":k.color}}>{k.avatar} {k.name}</button>)}</div></div><PrimaryBtn onClick={saveToCalendar}>Add to calendar</PrimaryBtn><GhostBtn onClick={()=>{setResult(null);setImage(null);setImageBase64(null);}}>Scan again</GhostBtn></Card></div>}
+      {saved&&<Card style={{textAlign:"center",padding:"32px 20px",background:C.greenLight,marginTop:12}}><div style={{fontFamily:F,fontWeight:800,fontSize:16,color:C.green}}>Added to calendar!</div></Card>}
+    </div>
+  );
+}
+
+    // Mount the app
+    const container = document.getElementById('root');
+    const root = ReactDOM.createRoot(container);
+    root.render(React.createElement(Baton));
+  </script>
+</body>
 </html>
