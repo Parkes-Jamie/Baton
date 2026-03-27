@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="theme-color" content="#7C3AED" />
   <title>Baton</title>
@@ -17,21 +17,28 @@
 <body>
   <div id="root"><div style="display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;color:#7C3AED;font-size:18px;">Loading Baton...</div></div>
 
-  <!-- React and ReactDOM via CDN -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <!-- Babel to transpile JSX -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <!-- Supabase -->
-  <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
-  <script type="text/babel" data-presets="react">
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+    window._batonSB = createClient(
+      'https://wcqbvbzfatgevqizcqba.supabase.co',
+      'sb_publishable_ySXW57AlTbHmDEjz7k1ROg_Yz6O8fZe'
+    );
+    // Signal ready
+    window._batonSBReady = true;
+    document.dispatchEvent(new Event('supabase-ready'));
+  </script>
+
+  <script type="text/babel" data-presets="react" data-type="module">
     const { useState, useEffect, useCallback } = React;
-    const { createClient } = window.supabase;
 
-const SUPABASE_URL = "https://wcqbvbzfatgevqizcqba.supabase.co";
+
+const SUPABASE_URL = "https://wcqbvbzfatgevqizcqba.sb.co";
 const SUPABASE_KEY = "sb_publishable_ySXW57AlTbHmDEjz7k1ROg_Yz6O8fZe";
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const sb = window._batonSB;
 
 const C = {
   purple: "#7C3AED", purpleLight: "#EDE9FE",
@@ -224,7 +231,7 @@ function AuthScreen({ onAuth }) {
   const login = async () => {
     if (!email || !password) { setError("Please enter email and password"); return; }
     setLoading(true); setError("");
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await sb.auth.signInWithPassword({ email, password });
     if (error) setError(error.message);
     setLoading(false);
   };
@@ -233,7 +240,7 @@ function AuthScreen({ onAuth }) {
     if (!email || !password || !name) { setError("Please fill in all fields"); return; }
     if (password.length < 6) { setError("Password must be at least 6 characters"); return; }
     setLoading(true); setError("");
-    const { error } = await supabase.auth.signUp({ email, password, options: { data: { display_name: name } } });
+    const { error } = await sb.auth.signUp({ email, password, options: { data: { display_name: name } } });
     if (error) setError(error.message);
     else setMessage("Check your email to confirm your account, then come back and log in.");
     setLoading(false);
@@ -242,7 +249,7 @@ function AuthScreen({ onAuth }) {
   const resetPassword = async () => {
     if (!email) { setError("Please enter your email"); return; }
     setLoading(true); setError("");
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    const { error } = await sb.auth.resetPasswordForEmail(email);
     if (error) setError(error.message);
     else setMessage("Password reset email sent. Check your inbox.");
     setLoading(false);
@@ -292,11 +299,11 @@ function FamilySetupScreen({ user, onSetup }) {
     setLoading(true); setError("");
     try {
       const code = generateInviteCode();
-      const { data: family, error: fe } = await supabase.from("families").insert({ name: familyName.trim(), invite_code: code }).select().single();
+      const { data: family, error: fe } = await sb.from("families").insert({ name: familyName.trim(), invite_code: code }).select().single();
       if (fe) throw fe;
-      const { error: me } = await supabase.from("family_members").insert({ family_id: family.id, user_id: user.id, role: "admin", display_name: user.user_metadata?.display_name || "Parent" });
+      const { error: me } = await sb.from("family_members").insert({ family_id: family.id, user_id: user.id, role: "admin", display_name: user.user_metadata?.display_name || "Parent" });
       if (me) throw me;
-      await supabase.from("family_settings").insert({ family_id: family.id });
+      await sb.from("family_settings").insert({ family_id: family.id });
       onSetup(family);
     } catch (e) { setError(e.message); }
     setLoading(false);
@@ -306,9 +313,9 @@ function FamilySetupScreen({ user, onSetup }) {
     if (!inviteCode.trim()) { setError("Please enter an invite code"); return; }
     setLoading(true); setError("");
     try {
-      const { data: family, error: fe } = await supabase.from("families").select().eq("invite_code", inviteCode.trim().toUpperCase()).single();
+      const { data: family, error: fe } = await sb.from("families").select().eq("invite_code", inviteCode.trim().toUpperCase()).single();
       if (fe || !family) { setError("Invite code not found. Check and try again."); setLoading(false); return; }
-      const { error: me } = await supabase.from("family_members").insert({ family_id: family.id, user_id: user.id, role: "parent", display_name: user.user_metadata?.display_name || "Parent" });
+      const { error: me } = await sb.from("family_members").insert({ family_id: family.id, user_id: user.id, role: "parent", display_name: user.user_metadata?.display_name || "Parent" });
       if (me) throw me;
       onSetup(family);
     } catch (e) { setError(e.message); }
@@ -549,7 +556,7 @@ function SettingsScreen({ family, user, dadEmoji, mumEmoji, setDadEmoji, setMumE
     navigator.clipboard?.writeText(family.invite_code).catch(()=>{});
     setCopying(true); setTimeout(()=>setCopying(false), 2000);
   };
-  const signOut = async () => { await supabase.auth.signOut(); onSignOut(); };
+  const signOut = async () => { await sb.auth.signOut(); onSignOut(); };
   return (
     <div style={{ padding:"0 16px 32px" }}>
       <Card style={{ marginTop:8 }}>
@@ -564,8 +571,8 @@ function SettingsScreen({ family, user, dadEmoji, mumEmoji, setDadEmoji, setMumE
       </Card>
       <Card>
         <div style={{ fontFamily:F, fontWeight:800, fontSize:16, color:C.text, marginBottom:12 }}>Parent emojis</div>
-        <ParentEmojiPicker label="Dad emoji" value={dadEmoji} onChange={async v=>{ setDadEmoji(v); await supabase.from("family_settings").update({dad_emoji:v}).eq("family_id",familyId); }} accentColor={C.blue} accentLight={C.blueLight} />
-        <ParentEmojiPicker label="Mum emoji" value={mumEmoji} onChange={async v=>{ setMumEmoji(v); await supabase.from("family_settings").update({mum_emoji:v}).eq("family_id",familyId); }} accentColor={C.pink} accentLight={C.pinkLight} />
+        <ParentEmojiPicker label="Dad emoji" value={dadEmoji} onChange={async v=>{ setDadEmoji(v); await sb.from("family_settings").update({dad_emoji:v}).eq("family_id",familyId); }} accentColor={C.blue} accentLight={C.blueLight} />
+        <ParentEmojiPicker label="Mum emoji" value={mumEmoji} onChange={async v=>{ setMumEmoji(v); await sb.from("family_settings").update({mum_emoji:v}).eq("family_id",familyId); }} accentColor={C.pink} accentLight={C.pinkLight} />
       </Card>
       <Card>
         <div style={{ fontFamily:F, fontWeight:800, fontSize:16, color:C.text, marginBottom:4 }}>Account</div>
@@ -604,8 +611,8 @@ function Baton() {
 
   // Auth listener
   useEffect(()=>{
-    supabase.auth.getSession().then(({data:{session}})=>{ setSession(session); setLoading(false); });
-    const {data:{subscription}} = supabase.auth.onAuthStateChange((_,session)=>setSession(session));
+    sb.auth.getSession().then(({data:{session}})=>{ setSession(session); setLoading(false); });
+    const {data:{subscription}} = sb.auth.onAuthStateChange((_,session)=>setSession(session));
     return ()=>subscription.unsubscribe();
   },[]);
 
@@ -616,7 +623,7 @@ function Baton() {
   },[session]);
 
   const loadFamily = async () => {
-    const { data } = await supabase.from("family_members").select("family_id, families(*)").eq("user_id", session.user.id).single();
+    const { data } = await sb.from("family_members").select("family_id, families(*)").eq("user_id", session.user.id).single();
     if (data) { setFamily(data.families); setFamilyId(data.family_id); }
   };
 
@@ -632,17 +639,17 @@ function Baton() {
     setDataLoading(true);
     const fid = familyId;
     const [k,ev,sp,ex,ho,no,bi,ro,cl,pr,fs] = await Promise.all([
-      supabase.from("kids").select("*").eq("family_id",fid).order("created_at"),
-      supabase.from("events").select("*").eq("family_id",fid).order("date"),
-      supabase.from("sport_days").select("*").eq("family_id",fid),
-      supabase.from("extras").select("*").eq("family_id",fid).order("date"),
-      supabase.from("holidays").select("*").eq("family_id",fid).order("start_date"),
-      supabase.from("notes").select("*").eq("family_id",fid).order("created_at",{ascending:false}),
-      supabase.from("birthdays").select("*").eq("family_id",fid),
-      supabase.from("routines").select("*").eq("family_id",fid),
-      supabase.from("clothing").select("*").eq("family_id",fid),
-      supabase.from("profiles").select("*").eq("family_id",fid),
-      supabase.from("family_settings").select("*").eq("family_id",fid).single(),
+      sb.from("kids").select("*").eq("family_id",fid).order("created_at"),
+      sb.from("events").select("*").eq("family_id",fid).order("date"),
+      sb.from("sport_days").select("*").eq("family_id",fid),
+      sb.from("extras").select("*").eq("family_id",fid).order("date"),
+      sb.from("holidays").select("*").eq("family_id",fid).order("start_date"),
+      sb.from("notes").select("*").eq("family_id",fid).order("created_at",{ascending:false}),
+      sb.from("birthdays").select("*").eq("family_id",fid),
+      sb.from("routines").select("*").eq("family_id",fid),
+      sb.from("clothing").select("*").eq("family_id",fid),
+      sb.from("profiles").select("*").eq("family_id",fid),
+      sb.from("family_settings").select("*").eq("family_id",fid).single(),
     ]);
     if (k.data) setKids(k.data);
     if (ev.data) setEvents(ev.data);
@@ -665,15 +672,15 @@ function Baton() {
   const setupRealtime = () => {
     const tables = ["kids","events","sport_days","extras","holidays","notes","birthdays","routines","clothing","profiles","family_settings"];
     return tables.map(t=>
-      supabase.channel(`${t}_changes`).on("postgres_changes",{event:"*",schema:"public",table:t,filter:`family_id=eq.${familyId}`},()=>loadAllData()).subscribe()
+      sb.channel(`${t}_changes`).on("postgres_changes",{event:"*",schema:"public",table:t,filter:`family_id=eq.${familyId}`},()=>loadAllData()).subscribe()
     );
   };
 
   // DB helpers
   const db = {
-    add: async (table, data) => { const {data:d,error} = await supabase.from(table).insert({...data, family_id:familyId}).select().single(); return d; },
-    update: async (table, id, data) => { await supabase.from(table).update(data).eq("id",id); },
-    remove: async (table, id) => { await supabase.from(table).delete().eq("id",id); },
+    add: async (table, data) => { const {data:d,error} = await sb.from(table).insert({...data, family_id:familyId}).select().single(); return d; },
+    update: async (table, id, data) => { await sb.from(table).update(data).eq("id",id); },
+    remove: async (table, id) => { await sb.from(table).delete().eq("id",id); },
   };
 
   if (loading) return <div style={{ minHeight:"100vh", background:C.bg, display:"flex", alignItems:"center", justifyContent:"center" }}><Spinner /></div>;
@@ -1348,10 +1355,18 @@ function ScanScreen({ kids, setEvents, onClose, familyId, db }) {
   );
 }
 
-    // Mount the app
-    const container = document.getElementById('root');
-    const root = ReactDOM.createRoot(container);
-    root.render(React.createElement(Baton));
+    // Mount
+    function mountApp() {
+      const container = document.getElementById('root');
+      const root = ReactDOM.createRoot(container);
+      root.render(React.createElement(Baton));
+    }
+
+    if (window._batonSBReady) {
+      mountApp();
+    } else {
+      document.addEventListener('supabase-ready', mountApp);
+    }
   </script>
 </body>
 </html>
