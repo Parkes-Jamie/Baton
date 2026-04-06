@@ -36,7 +36,7 @@
     const { useState, useEffect, useCallback } = React;
 
 
-const SUPABASE_URL = "https://wcqbvbzfatgevqizcqba.sb.co";
+const SUPABASE_URL = "https://clbcjbgjkcdftcvfwuux.supabase.co";
 const SUPABASE_KEY = "sb_publishable_Dvttx05eFjUxlRMd85iIgA_ZG0OhgM3";
 const sb = window._batonSB;
 
@@ -67,6 +67,21 @@ const weekBSchedule = [
   { day: "Wed", who: "mum" }, { day: "Thu", who: "mum" }, { day: "Fri", who: "mum" },
   { day: "Sat", who: "dad" }, { day: "Sun", who: "dad" },
 ];
+
+// Common schedule presets
+const SCHEDULE_PRESETS = [
+  { id: "week_ab", label: "Alternating weeks", desc: "Full week with one parent, then the other" },
+  { id: "2_2_3",  label: "2-2-3 rotation", desc: "Mon-Tue, Wed-Thu, then alternate 3-day weekends" },
+  { id: "3_4",    label: "3-4 split", desc: "3 days one parent, 4 days the other, alternating" },
+  { id: "custom", label: "Custom", desc: "Set each day manually" },
+];
+
+// Build schedule from custom day settings
+function buildCustomSchedule(daySettings) {
+  const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  return days.map((day, i) => ({ day, who: daySettings?.[i] || "dad" }));
+}
+
 const WEEK_A_ANCHOR = new Date("2026-03-16");
 
 function getMondayOfWeek(date) {
@@ -291,6 +306,7 @@ function FamilySetupScreen({ user, onSetup }) {
   const [mode, setMode] = useState("choose");
   const [familyName, setFamilyName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
+  const [parentRole, setParentRole] = useState("dad");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -301,9 +317,11 @@ function FamilySetupScreen({ user, onSetup }) {
       const code = generateInviteCode();
       const { data: family, error: fe } = await sb.from("families").insert({ name: familyName.trim(), invite_code: code }).select().single();
       if (fe) throw fe;
+      const dadEmoji = parentRole === "dad" ? "\uD83D\uDC68" : "\uD83D\uDC69";
+      const mumEmoji = parentRole === "dad" ? "\uD83D\uDC69" : "\uD83D\uDC68";
       const { error: me } = await sb.from("family_members").insert({ family_id: family.id, user_id: user.id, role: "admin", display_name: user.user_metadata?.display_name || "Parent" });
       if (me) throw me;
-      await sb.from("family_settings").insert({ family_id: family.id });
+      await sb.from("family_settings").insert({ family_id: family.id, dad_emoji: dadEmoji, mum_emoji: mumEmoji });
       onSetup(family);
     } catch (e) { setError(e.message); }
     setLoading(false);
@@ -347,6 +365,13 @@ function FamilySetupScreen({ user, onSetup }) {
         {mode==="create" && <>
           <div style={{ fontFamily:F, fontWeight:900, fontSize:20, color:C.text, marginBottom:20 }}>Create your family</div>
           <FieldInput label="Family name" value={familyName} onChange={setFamilyName} placeholder="e.g. The Smith Family" />
+          <div style={{ marginBottom:14 }}>
+            <div style={{ fontFamily:F, fontSize:11, fontWeight:700, color:C.muted, marginBottom:8, textTransform:"uppercase", letterSpacing:0.8 }}>I am</div>
+            <div style={{ display:"flex", gap:8 }}>
+              <button onClick={()=>setParentRole("dad")} style={{ flex:1, padding:"12px 0", borderRadius:14, border:"none", cursor:"pointer", fontFamily:F, fontWeight:700, fontSize:15, background:parentRole==="dad"?C.blue:C.blueLight, color:parentRole==="dad"?"#fff":C.blue }}>Dad</button>
+              <button onClick={()=>setParentRole("mum")} style={{ flex:1, padding:"12px 0", borderRadius:14, border:"none", cursor:"pointer", fontFamily:F, fontWeight:700, fontSize:15, background:parentRole==="mum"?C.pink:C.pinkLight, color:parentRole==="mum"?"#fff":C.pink }}>Mum</button>
+            </div>
+          </div>
           {error && <div style={{ background:C.redLight, color:C.red, borderRadius:12, padding:"10px 14px", fontFamily:F, fontSize:13, fontWeight:600, marginBottom:10 }}>{error}</div>}
           <PrimaryBtn onClick={createFamily} disabled={loading}>{loading?"Creating...":"Create family"}</PrimaryBtn>
           <GhostBtn onClick={()=>{setMode("choose");setError("");}}>Back</GhostBtn>
@@ -374,14 +399,14 @@ function AvatarPicker({ value, onChange }) {
       <div style={{ display:"flex", gap:6, marginBottom:10, alignItems:"center" }}>
         <span style={{ fontFamily:F, fontSize:11, color:C.muted, fontWeight:600 }}>Skin:</span>
         {SKIN_TONES.map((t,i)=>(
-          <button key={i} onClick={()=>{setTone(t); onChange(applyTone(BASE_FACES[0],t));}} style={{ width:32, height:32, borderRadius:10, border:tone===t?`3px solid ${C.purple}`:"2px solid transparent", background:tone===t?C.purpleLight:"#F3F4F6", fontSize:18, cursor:"pointer" }}>
+          <button key={i} onMouseDown={e=>e.preventDefault()} onClick={()=>{setTone(t); onChange(applyTone(BASE_FACES[0],t));}} style={{ width:32, height:32, borderRadius:10, border:tone===t?`3px solid ${C.purple}`:"2px solid transparent", background:tone===t?C.purpleLight:"#F3F4F6", fontSize:18, cursor:"pointer" }}>
             {t?BASE_FACES[0]+t:BASE_FACES[0]}
           </button>
         ))}
       </div>
       <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
         {allAvatars.map((a,i)=>(
-          <button key={i} onClick={()=>onChange(a)} style={{ width:42, height:42, borderRadius:12, border:value===a?`3px solid ${C.purple}`:"2px solid transparent", background:value===a?C.purpleLight:"#F3F4F6", fontSize:22, cursor:"pointer" }}>{a}</button>
+          <button key={i} onMouseDown={e=>e.preventDefault()} onClick={()=>onChange(a)} style={{ width:42, height:42, borderRadius:12, border:value===a?`3px solid ${C.purple}`:"2px solid transparent", background:value===a?C.purpleLight:"#F3F4F6", fontSize:22, cursor:"pointer" }}>{a}</button>
         ))}
       </div>
     </div>
@@ -833,6 +858,45 @@ function Baton() {
   );
 }
 
+function KidFormUI({form, setForm, onSubmit, submitLabel, onDelete, onCancel}) {
+  return (
+    <div style={{padding:"0 20px"}}>
+      <AvatarPicker value={form.avatar} onChange={a=>setForm(p=>({...p,avatar:a}))} />
+      <div style={{marginBottom:14}}>
+        <div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Colour</div>
+        <div style={{display:"flex",gap:8}}>
+          {PROFILE_COLORS.map(co=><button key={co.color} onClick={()=>setForm(p=>({...p,color:co.color,colorLight:co.colorLight}))} style={{width:36,height:36,borderRadius:10,border:form.color===co.color?`3px solid ${C.text}`:"3px solid transparent",background:co.color,cursor:"pointer"}} />)}
+        </div>
+      </div>
+      <FieldInput label="Name" value={form.name} onChange={v=>setForm(p=>({...p,name:v}))} placeholder="e.g. Leo" />
+      <FieldInput label="Age" value={String(form.age)} onChange={v=>setForm(p=>({...p,age:v}))} type="number" placeholder="13" />
+      <PrimaryBtn onClick={onSubmit}>{submitLabel}</PrimaryBtn>
+      {onDelete && <DeleteBtn onClick={onDelete} />}
+      <GhostBtn onClick={onCancel}>Cancel</GhostBtn>
+    </div>
+  );
+}
+
+
+function KidFormUI({form, setForm, onSubmit, submitLabel, onDelete, onCancel}) {
+  return (
+    <div style={{padding:"0 20px"}}>
+      <AvatarPicker value={form.avatar} onChange={a=>setForm(p=>({...p,avatar:a}))} />
+      <div style={{marginBottom:14}}>
+        <div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Colour</div>
+        <div style={{display:"flex",gap:8}}>
+          {PROFILE_COLORS.map(co=><button key={co.color} onMouseDown={e=>e.preventDefault()} onClick={()=>setForm(p=>({...p,color:co.color,colorLight:co.colorLight}))} style={{width:36,height:36,borderRadius:10,border:form.color===co.color?`3px solid ${C.text}`:"3px solid transparent",background:co.color,cursor:"pointer"}} />)}
+        </div>
+      </div>
+      <FieldInput label="Name" value={form.name} onChange={v=>setForm(p=>({...p,name:v}))} placeholder="e.g. Leo" />
+      <FieldInput label="Age" value={String(form.age||"")} onChange={v=>setForm(p=>({...p,age:v}))} type="number" placeholder="13" />
+      <PrimaryBtn onClick={onSubmit}>{submitLabel}</PrimaryBtn>
+      {onDelete && <DeleteBtn onClick={onDelete} />}
+      <GhostBtn onClick={onCancel}>Cancel</GhostBtn>
+    </div>
+  );
+}
+
 // ── Profiles Screen ───────────────────────────────────────────────────────────
 function ProfilesScreen({ kids, setKids, profiles, setProfiles, familyId, db }) {
   const [activeKid, setActiveKid] = useState(kids[0]?.id||null);
@@ -874,23 +938,13 @@ function ProfilesScreen({ kids, setKids, profiles, setProfiles, familyId, db }) 
     setKids(remaining); setActiveKid(remaining[0]?.id||null); setShowDeleteConfirm(false);
   };
 
-  const KidFormUI = ({form,setForm,onSubmit,submitLabel,onDelete}) => (
-    <div style={{padding:"0 20px"}}>
-      <AvatarPicker value={form.avatar} onChange={a=>setForm(p=>({...p,avatar:a}))} />
-      <div style={{marginBottom:14}}><div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Colour</div><div style={{display:"flex",gap:8}}>{PROFILE_COLORS.map(co=><button key={co.color} onClick={()=>setForm(p=>({...p,color:co.color,colorLight:co.colorLight}))} style={{width:36,height:36,borderRadius:10,border:form.color===co.color?`3px solid ${C.text}`:"3px solid transparent",background:co.color,cursor:"pointer"}} />)}</div></div>
-      <FieldInput label="Name" value={form.name} onChange={v=>setForm(p=>({...p,name:v}))} placeholder="e.g. Leo" />
-      <FieldInput label="Age" value={String(form.age)} onChange={v=>setForm(p=>({...p,age:v}))} type="number" placeholder="13" />
-      <PrimaryBtn onClick={onSubmit}>{submitLabel}</PrimaryBtn>
-      {onDelete && <DeleteBtn onClick={onDelete} />}
-      <GhostBtn onClick={()=>{setShowAddKid(false);setShowEditKid(false);}}>Cancel</GhostBtn>
-    </div>
-  );
+  // KidFormUI moved to module level
 
   if (!kid) return (
     <div style={{padding:"32px 20px",textAlign:"center"}}>
       <div style={{fontFamily:F,fontSize:15,color:C.muted,marginBottom:16}}>No profiles yet</div>
       <PrimaryBtn onClick={()=>setShowAddKid(true)}>Add first profile</PrimaryBtn>
-      {showAddKid && <Modal onClose={()=>setShowAddKid(false)}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>Add profile</div><KidFormUI form={kidForm} setForm={setKidForm} onSubmit={addKid} submitLabel="Add profile" /></Modal>}
+      {showAddKid && <Modal onClose={()=>setShowAddKid(false)}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>Add profile</div><KidFormUI form={kidForm} setForm={setKidForm} onSubmit={addKid} submitLabel="Add profile" onCancel={()=>setShowAddKid(false)} /></Modal>}
     </div>
   );
 
@@ -921,8 +975,8 @@ function ProfilesScreen({ kids, setKids, profiles, setProfiles, familyId, db }) 
           ))}
         </Card>
       ))}
-      {showAddKid && <Modal onClose={()=>setShowAddKid(false)}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>Add profile</div><KidFormUI form={kidForm} setForm={setKidForm} onSubmit={addKid} submitLabel="Add profile" /></Modal>}
-      {showEditKid && <Modal onClose={()=>setShowEditKid(false)}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>Edit profile</div><KidFormUI form={kidForm} setForm={setKidForm} onSubmit={saveEditKid} submitLabel="Save changes" onDelete={kids.length>1?()=>setShowDeleteConfirm(true):null} /></Modal>}
+      {showAddKid && <Modal onClose={()=>setShowAddKid(false)}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>Add profile</div><KidFormUI form={kidForm} setForm={setKidForm} onSubmit={addKid} submitLabel="Add profile" onCancel={()=>setShowAddKid(false)} /></Modal>}
+      {showEditKid && <Modal onClose={()=>setShowEditKid(false)}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>Edit profile</div><KidFormUI form={kidForm} setForm={setKidForm} onSubmit={saveEditKid} submitLabel="Save changes" onDelete={kids.length>1?()=>setShowDeleteConfirm(true):null} onCancel={()=>{setShowEditKid(false);}} /></Modal>}
       {showDeleteConfirm && <Modal onClose={()=>setShowDeleteConfirm(false)}><div style={{padding:"20px 20px 0"}}><div style={{fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:8}}>Delete {kid.name}?</div><div style={{fontFamily:F,fontSize:14,color:C.muted,marginBottom:20}}>This will remove their profile and all their info.</div><PrimaryBtn onClick={deleteKid} bg={C.red}>Yes, delete</PrimaryBtn><GhostBtn onClick={()=>setShowDeleteConfirm(false)}>Cancel</GhostBtn></div></Modal>}
     </div>
   );
@@ -942,19 +996,38 @@ function EventsScreen({ kids, events, setEvents, sportDays, setSportDays, family
   const submitEvent = async () => {
     if (!form.title.trim()||!form.date||form.kidIds.length===0){setError("Please fill in title, date and select kids");return;}
     setError("");
-    const kidUUIDs = form.kidIds;
-    if (editing) { await db.update("events",editing,{...form,kid_ids:kidUUIDs}); setEvents(prev=>prev.map(e=>e.id===editing?{...e,...form,kid_ids:kidUUIDs}:e)); }
-    else { const ne=await db.add("events",{...form,kid_ids:kidUUIDs}); if(ne) setEvents(prev=>[...prev,ne]); }
-    setShowAdd(false); setEditing(null);
+    try {
+      const kidUUIDs = form.kidIds;
+      const eventData = { title:form.title, date:form.date, time:form.time||"", type:form.type, emoji:form.emoji, who:form.who, kid_ids:kidUUIDs, notes:form.notes||"" };
+      if (editing) {
+        const {error:ue} = await sb.from("events").update(eventData).eq("id",editing);
+        if (ue) throw ue;
+        setEvents(prev=>prev.map(e=>e.id===editing?{...e,...eventData}:e));
+      } else {
+        const {data:ne, error:ie} = await sb.from("events").insert({...eventData, family_id:familyId}).select().single();
+        if (ie) throw ie;
+        if (ne) setEvents(prev=>[...prev,ne]);
+      }
+      setShowAdd(false); setEditing(null);
+    } catch(e) { setError(e.message||"Failed to save event"); }
   };
 
   const submitSport = async () => {
     if (!sportForm.label.trim()){setError("Please add a name");return;}
     setError("");
-    const data = {...sportForm, kid_id:sportForm.kidId, day_of_week:sportForm.dayOfWeek, color_light:sportForm.colorLight};
-    if (editing) { await db.update("sport_days",editing,data); setSportDays(prev=>prev.map(s=>s.id===editing?{...s,...data}:s)); }
-    else { const ns=await db.add("sport_days",data); if(ns) setSportDays(prev=>[...prev,ns]); }
-    setShowAdd(false); setEditing(null);
+    try {
+      const data = { label:sportForm.label, emoji:sportForm.emoji, kid_id:sportForm.kidId, day_of_week:sportForm.dayOfWeek, time:sportForm.time||"", color:sportForm.color, color_light:sportForm.colorLight };
+      if (editing) {
+        const {error:ue} = await sb.from("sport_days").update(data).eq("id",editing);
+        if (ue) throw ue;
+        setSportDays(prev=>prev.map(s=>s.id===editing?{...s,...data}:s));
+      } else {
+        const {data:ns, error:ie} = await sb.from("sport_days").insert({...data, family_id:familyId}).select().single();
+        if (ie) throw ie;
+        if (ns) setSportDays(prev=>[...prev,ns]);
+      }
+      setShowAdd(false); setEditing(null);
+    } catch(e) { setError(e.message||"Failed to save activity"); }
   };
 
   return (
