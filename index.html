@@ -630,6 +630,8 @@ function Baton() {
   const [mumEmoji, setMumEmoji] = useState("\uD83D\uDC69");
   const [dataLoading, setDataLoading] = useState(false);
 
+  const [myRole, setMyRole] = useState("dad");
+  const [notifications, setNotifications] = useState([]);
   const [openScreen, setOpenScreen] = useState(null);
   const [showYear, setShowYear] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -648,8 +650,8 @@ function Baton() {
   },[session]);
 
   const loadFamily = async () => {
-    const { data } = await sb.from("family_members").select("family_id, families(*)").eq("user_id", session.user.id).single();
-    if (data) { setFamily(data.families); setFamilyId(data.family_id); }
+    const { data } = await sb.from("family_members").select("family_id, role, families(*)").eq("user_id", session.user.id).single();
+    if (data) { setFamily(data.families); setFamilyId(data.family_id); setMyRole(data.role==="admin"?"dad":data.role||"dad"); }
   };
 
   // Load all data when family is set
@@ -679,7 +681,16 @@ function Baton() {
     if (k.data) setKids(k.data);
     if (ev.data) setEvents(ev.data);
     if (sp.data) setSportDays(sp.data);
-    if (ex.data) setExtras(ex.data);
+    if (ex.data) {
+      setExtras(ex.data);
+      const pending = ex.data.filter(e=>e.status==="pending");
+      if (pending.length>0) {
+        setNotifications(prev=>{
+          const msgs = pending.map(e=>({id:e.id,msg:"New swap request for "+new Date(e.date).toLocaleDateString("en-GB",{day:"numeric",month:"short"}),type:"swap"}));
+          return [...prev,...msgs.filter(m=>!prev.find(p=>p.id===m.id))];
+        });
+      }
+    }
     if (ho.data) setHolidays(ho.data);
     if (no.data) setNotes(no.data);
     if (bi.data) setBirthdays(bi.data);
@@ -780,6 +791,18 @@ function Baton() {
         </div>
       </div>
 
+      {notifications.length>0 && (
+        <div style={{margin:"12px 16px 0"}}>
+          {notifications.slice(0,3).map((n,i)=>(
+            <div key={i} onClick={()=>{ setOpenScreen("extras"); setNotifications(prev=>prev.filter((_,idx)=>idx!==i)); }} style={{display:"flex",alignItems:"center",gap:12,background:C.orangeLight,borderRadius:14,padding:"12px 16px",marginBottom:8,cursor:"pointer",border:"2px solid rgba(249,115,22,0.2)"}}>
+              <div style={{fontSize:20}}>🔔</div>
+              <div style={{flex:1,fontFamily:F,fontSize:13,fontWeight:700,color:C.text}}>{n.msg}</div>
+              <button onClick={e=>{e.stopPropagation();setNotifications(prev=>prev.filter((_,idx)=>idx!==i));}} style={{background:"none",border:"none",cursor:"pointer",color:C.muted,fontSize:18,lineHeight:1}}>x</button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {upcomingItems.length>0 && (
         <div style={{ padding:"16px 16px 0" }}>
           <SecLabel>Coming up</SecLabel>
@@ -836,12 +859,12 @@ function Baton() {
           <SheetHeader title={screenTitles[openScreen]||""} onClose={()=>setOpenScreen(null)} />
           {openScreen==="profiles"  && <ProfilesScreen kids={kids} setKids={setKids} profiles={profiles} setProfiles={setProfiles} familyId={familyId} db={db} />}
           {openScreen==="events"    && <EventsScreen kids={kids} events={events} setEvents={setEvents} sportDays={sportDays} setSportDays={setSportDays} familyId={familyId} db={db} />}
-          {openScreen==="extras"    && <ExtrasScreen kids={kids} extras={extras} setExtras={setExtras} familyId={familyId} db={db} />}
+          {openScreen==="extras"    && <ExtrasScreen kids={kids} extras={extras} setExtras={setExtras} familyId={familyId} db={db} myRole={myRole} />}
           {openScreen==="holidays"  && <HolidaysScreen holidays={holidays} setHolidays={setHolidays} familyId={familyId} db={db} />}
           {openScreen==="birthdays" && <BirthdaysScreen birthdays={birthdays} setBirthdays={setBirthdays} kids={kids} familyId={familyId} db={db} />}
           {openScreen==="routines"  && <RoutinesScreen routines={routines} setRoutines={setRoutines} kids={kids} familyId={familyId} db={db} />}
           {openScreen==="clothing"  && <ClothingScreen kids={kids} clothing={clothing} setClothing={setClothing} familyId={familyId} db={db} />}
-          {openScreen==="handover"  && <HandoverScreen notes={notes} setNotes={setNotes} kids={kids} familyId={familyId} db={db} />}
+          {openScreen==="handover"  && <HandoverScreen notes={notes} setNotes={setNotes} kids={kids} familyId={familyId} db={db} myRole={myRole} />}
           {openScreen==="scan"      && <ScanScreen kids={kids} setEvents={setEvents} onClose={()=>setOpenScreen(null)} familyId={familyId} db={db} />}
         </Modal>
       )}
@@ -1052,9 +1075,9 @@ function ReqForm({req, setReq, kids, error}) {
         <div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Type</div>
         <div style={{display:"flex",gap:8}}>{Object.entries(typeConfig).map(([id,tc])=><button key={id} onClick={()=>setReq(p=>({...p,type:id}))} style={{flex:1,padding:"10px 6px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:12,background:req.type===id?C.purple:C.purpleLight,color:req.type===id?"#fff":C.purple}}>{tc.label}</button>)}</div>
       </div>
-      <div style={{marginBottom:14}}>
-        <div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>From</div>
-        <div style={{display:"flex",gap:8}}>{["dad","mum"].map(pw=><button key={pw} onClick={()=>setReq(prev=>({...prev,from_parent:pw}))} style={{flex:1,padding:"10px 0",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,background:req.from_parent===pw?(pw==="dad"?C.blue:C.pink):(pw==="dad"?C.blueLight:C.pinkLight),color:req.from_parent===pw?"#fff":(pw==="dad"?C.blue:C.pink)}}>{pw==="dad"?"Dad":"Mum"}</button>)}</div>
+      <div style={{marginBottom:14,background:req.from_parent==="dad"?C.blueLight:C.pinkLight,borderRadius:12,padding:"10px 14px"}}>
+        <div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:4,textTransform:"uppercase",letterSpacing:0.8}}>Requesting as</div>
+        <div style={{fontFamily:F,fontSize:15,fontWeight:800,color:req.from_parent==="dad"?C.blue:C.pink}}>{req.from_parent==="dad"?"Dad":"Mum"}</div>
       </div>
       <div style={{marginBottom:14}}>
         <div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Which kids?</div>
@@ -1069,12 +1092,12 @@ function ReqForm({req, setReq, kids, error}) {
 }
 
 // ── Extras/Swaps Screen ───────────────────────────────────────────────────────
-function ExtrasScreen({ kids, extras, setExtras, familyId, db }) {
+function ExtrasScreen({ kids, extras, setExtras, familyId, db, myRole="dad" }) {
   const [showNew, setShowNew] = useState(false);
   const [editingReq, setEditingReq] = useState(null);
   const [respondingTo, setRespondingTo] = useState(null);
   const [responseText, setResponseText] = useState("");
-  const [newReq, setNewReq] = useState({type:"want_extra",from_parent:"dad",kidIds:[],date:"",time:"",reason:""});
+  const [newReq, setNewReq] = useState({type:"want_extra",from_parent:myRole,kidIds:kids.map(k=>k.id),date:"",time:"",reason:""});
   const [filter, setFilter] = useState("all");
   const [error, setError] = useState("");
 
@@ -1089,7 +1112,7 @@ function ExtrasScreen({ kids, extras, setExtras, familyId, db }) {
     setError("");
     const ne = await db.add("extras",{...newReq,from_parent:newReq.from_parent,kid_ids:newReq.kidIds,status:"pending",response:""});
     if (ne) setExtras(prev=>[...prev,ne]);
-    setNewReq({type:"want_extra",from_parent:"dad",kidIds:[],date:"",time:"",reason:""}); setShowNew(false);
+    setNewReq({type:"want_extra",from_parent:myRole,kidIds:kids.map(k=>k.id),date:"",time:"",reason:""}); setShowNew(false);
   };
 
   const saveEdit = async () => {
@@ -1321,11 +1344,11 @@ function ClothingScreen({ kids, clothing, setClothing, familyId, db }) {
 }
 
 // ── Handover Screen ───────────────────────────────────────────────────────────
-function HandoverScreen({ notes, setNotes, kids, familyId, db }) {
+function HandoverScreen({ notes, setNotes, kids, familyId, db, myRole="dad" }) {
   const [showAdd, setShowAdd] = useState(false);
   const [filterKid, setFilterKid] = useState("all");
   const [filterCat, setFilterCat] = useState("all");
-  const [form, setForm] = useState({from_parent:"dad",kid_ids:[],category:"general",note:""});
+  const [form, setForm] = useState({from_parent:myRole,kid_ids:[],category:"general",note:""});
   const [error, setError] = useState("");
 
   const filtered = notes
@@ -1337,7 +1360,7 @@ function HandoverScreen({ notes, setNotes, kids, familyId, db }) {
     setError("");
     const nn = await db.add("notes",{...form});
     if (nn) setNotes(prev=>[nn,...prev]);
-    setForm({from_parent:"dad",kid_ids:[],category:"general",note:""}); setShowAdd(false);
+    setForm({from_parent:myRole,kid_ids:[],category:"general",note:""}); setShowAdd(false);
   };
 
   const formatTime = ts => {
