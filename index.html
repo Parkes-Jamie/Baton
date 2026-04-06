@@ -1045,6 +1045,29 @@ function EventsScreen({ kids, events, setEvents, sportDays, setSportDays, family
   );
 }
 
+function ReqForm({req, setReq, kids, error}) {
+  return (
+    <div style={{padding:"0 20px"}}>
+      <div style={{marginBottom:14}}>
+        <div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Type</div>
+        <div style={{display:"flex",gap:8}}>{Object.entries(typeConfig).map(([id,tc])=><button key={id} onClick={()=>setReq(p=>({...p,type:id}))} style={{flex:1,padding:"10px 6px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:12,background:req.type===id?C.purple:C.purpleLight,color:req.type===id?"#fff":C.purple}}>{tc.label}</button>)}</div>
+      </div>
+      <div style={{marginBottom:14}}>
+        <div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>From</div>
+        <div style={{display:"flex",gap:8}}>{["dad","mum"].map(pw=><button key={pw} onClick={()=>setReq(prev=>({...prev,from_parent:pw}))} style={{flex:1,padding:"10px 0",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,background:req.from_parent===pw?(pw==="dad"?C.blue:C.pink):(pw==="dad"?C.blueLight:C.pinkLight),color:req.from_parent===pw?"#fff":(pw==="dad"?C.blue:C.pink)}}>{pw==="dad"?"Dad":"Mum"}</button>)}</div>
+      </div>
+      <div style={{marginBottom:14}}>
+        <div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Which kids?</div>
+        <div style={{display:"flex",gap:8}}>{kids.map(k=><button key={k.id} onClick={()=>setReq(p=>({...p,kidIds:p.kidIds.includes(k.id)?p.kidIds.filter(id=>id!==k.id):[...p.kidIds,k.id]}))} style={{flex:1,padding:"10px 0",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,background:req.kidIds.includes(k.id)?k.color:(k.color_light||C.purpleLight),color:req.kidIds.includes(k.id)?"#fff":k.color}}>{k.avatar} {k.name}</button>)}</div>
+      </div>
+      <FieldInput label="Date" value={req.date} onChange={v=>setReq(p=>({...p,date:v}))} type="date" />
+      <FieldInput label="Time (optional)" value={req.time||""} onChange={v=>setReq(p=>({...p,time:v}))} type="time" />
+      <FieldTextarea label="Reason" value={req.reason||""} onChange={v=>setReq(p=>({...p,reason:v}))} placeholder="What is the occasion?" />
+      {error&&<div style={{background:C.redLight,color:C.red,borderRadius:12,padding:"10px 14px",fontFamily:F,fontSize:13,fontWeight:600,marginBottom:10}}>{error}</div>}
+    </div>
+  );
+}
+
 // ── Extras/Swaps Screen ───────────────────────────────────────────────────────
 function ExtrasScreen({ kids, extras, setExtras, familyId, db }) {
   const [showNew, setShowNew] = useState(false);
@@ -1080,17 +1103,7 @@ function ExtrasScreen({ kids, extras, setExtras, familyId, db }) {
   const filtered = filter==="all"?extras:extras.filter(e=>e.status===filter);
   const pendingCount = extras.filter(e=>e.status==="pending").length;
 
-  const ReqForm = ({req,setReq}) => (
-    <div style={{padding:"0 20px"}}>
-      <div style={{marginBottom:14}}><div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Type</div><div style={{display:"flex",gap:8}}>{Object.entries(typeConfig).map(([id,tc])=><button key={id} onClick={()=>setReq(p=>({...p,type:id}))} style={{flex:1,padding:"10px 6px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:12,background:req.type===id?C.purple:C.purpleLight,color:req.type===id?"#fff":C.purple}}>{tc.label}</button>)}</div></div>
-      <div style={{marginBottom:14}}><div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>From</div><div style={{display:"flex",gap:8}}>{["dad","mum"].map(pw=><button key={pw} onClick={()=>setReq(prev=>({...prev,from_parent:pw}))} style={{flex:1,padding:"10px 0",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,background:req.from_parent===pw?(pw==="dad"?C.blue:C.pink):(pw==="dad"?C.blueLight:C.pinkLight),color:req.from_parent===pw?"#fff":(pw==="dad"?C.blue:C.pink)}}>{pw==="dad"?"Dad":"Mum"}</button>)}</div></div>
-      <div style={{marginBottom:14}}><div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Which kids?</div><div style={{display:"flex",gap:8}}>{kids.map(k=><button key={k.id} onClick={()=>setReq(p=>({...p,kidIds:p.kidIds.includes(k.id)?p.kidIds.filter(id=>id!==k.id):[...p.kidIds,k.id]}))} style={{flex:1,padding:"10px 0",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,background:req.kidIds.includes(k.id)?k.color:(k.color_light||C.purpleLight),color:req.kidIds.includes(k.id)?"#fff":k.color}}>{k.avatar} {k.name}</button>)}</div></div>
-      <FieldInput label="Date" value={req.date} onChange={v=>setReq(p=>({...p,date:v}))} type="date" />
-      <FieldInput label="Time (optional)" value={req.time||""} onChange={v=>setReq(p=>({...p,time:v}))} type="time" />
-      <FieldTextarea label="Reason" value={req.reason||""} onChange={v=>setReq(p=>({...p,reason:v}))} placeholder="What is the occasion?" />
-      {error&&<div style={{background:C.redLight,color:C.red,borderRadius:12,padding:"10px 14px",fontFamily:F,fontSize:13,fontWeight:600,marginBottom:10}}>{error}</div>}
-    </div>
-  );
+
 
   return (
     <div style={{padding:"0 16px 32px"}}>
@@ -1124,8 +1137,8 @@ function ExtrasScreen({ kids, extras, setExtras, familyId, db }) {
         );
       })}
       <button onClick={()=>{setShowNew(true);setError("");}} style={{width:"100%",padding:"14px 0",borderRadius:16,border:`2px dashed ${C.purpleLight}`,background:"transparent",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,color:C.purple,marginTop:4}}>+ New request</button>
-      {showNew&&<Modal onClose={()=>{setShowNew(false);setError("");}}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>New request</div><ReqForm req={newReq} setReq={setNewReq} /><div style={{padding:"0 20px"}}><PrimaryBtn onClick={submitNew}>Send request</PrimaryBtn><GhostBtn onClick={()=>{setShowNew(false);setError("");}}>Cancel</GhostBtn></div></Modal>}
-      {editingReq&&<Modal onClose={()=>{setEditingReq(null);setError("");}}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>Edit request</div><ReqForm req={editingReq} setReq={setEditingReq} /><div style={{padding:"0 20px"}}><PrimaryBtn onClick={saveEdit}>Save changes</PrimaryBtn><DeleteBtn onClick={async()=>{await db.remove("extras",editingReq.id);setExtras(prev=>prev.filter(e=>e.id!==editingReq.id));setEditingReq(null);}} /><GhostBtn onClick={()=>{setEditingReq(null);setError("");}}>Cancel</GhostBtn></div></Modal>}
+      {showNew&&<Modal onClose={()=>{setShowNew(false);setError("");}}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>New request</div><ReqForm req={newReq} setReq={setNewReq} kids={kids} error={error} /><div style={{padding:"0 20px"}}><PrimaryBtn onClick={submitNew}>Send request</PrimaryBtn><GhostBtn onClick={()=>{setShowNew(false);setError("");}}>Cancel</GhostBtn></div></Modal>}
+      {editingReq&&<Modal onClose={()=>{setEditingReq(null);setError("");}}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>Edit request</div><ReqForm req={editingReq} setReq={setEditingReq} kids={kids} error={error} /><div style={{padding:"0 20px"}}><PrimaryBtn onClick={saveEdit}>Save changes</PrimaryBtn><DeleteBtn onClick={async()=>{await db.remove("extras",editingReq.id);setExtras(prev=>prev.filter(e=>e.id!==editingReq.id));setEditingReq(null);}} /><GhostBtn onClick={()=>{setEditingReq(null);setError("");}}>Cancel</GhostBtn></div></Modal>}
     </div>
   );
 }
