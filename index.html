@@ -845,6 +845,27 @@ function Baton() {
   );
 }
 
+function KidFormUI({form, setForm, onSubmit, submitLabel, onDelete, onCancel}) {
+  return (
+    <div style={{padding:"0 20px"}}>
+      <AvatarPicker value={form.avatar} onChange={a=>setForm(p=>({...p,avatar:a}))} />
+      <div style={{marginBottom:14}}>
+        <div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Colour</div>
+        <div style={{display:"flex",gap:8}}>
+          {PROFILE_COLORS.map(co=>(
+            <button key={co.color} onMouseDown={e=>e.preventDefault()} onClick={()=>setForm(p=>({...p,color:co.color,colorLight:co.colorLight}))} style={{width:36,height:36,borderRadius:10,border:form.color===co.color?`3px solid ${C.text}`:"3px solid transparent",background:co.color,cursor:"pointer"}} />
+          ))}
+        </div>
+      </div>
+      <FieldInput label="Name" value={form.name} onChange={v=>setForm(p=>({...p,name:v}))} placeholder="e.g. Leo" />
+      <FieldInput label="Age" value={String(form.age||"")} onChange={v=>setForm(p=>({...p,age:v}))} type="number" placeholder="13" />
+      <PrimaryBtn onClick={onSubmit}>{submitLabel}</PrimaryBtn>
+      {onDelete && <DeleteBtn onClick={onDelete} />}
+      <GhostBtn onClick={onCancel}>Cancel</GhostBtn>
+    </div>
+  );
+}
+
 // ── Profiles Screen ───────────────────────────────────────────────────────────
 function ProfilesScreen({ kids, setKids, profiles, setProfiles, familyId, db }) {
   const [activeKid, setActiveKid] = useState(kids[0]?.id||null);
@@ -886,23 +907,13 @@ function ProfilesScreen({ kids, setKids, profiles, setProfiles, familyId, db }) 
     setKids(remaining); setActiveKid(remaining[0]?.id||null); setShowDeleteConfirm(false);
   };
 
-  const KidFormUI = ({form,setForm,onSubmit,submitLabel,onDelete}) => (
-    <div style={{padding:"0 20px"}}>
-      <AvatarPicker value={form.avatar} onChange={a=>setForm(p=>({...p,avatar:a}))} />
-      <div style={{marginBottom:14}}><div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Colour</div><div style={{display:"flex",gap:8}}>{PROFILE_COLORS.map(co=><button key={co.color} onClick={()=>setForm(p=>({...p,color:co.color,colorLight:co.colorLight}))} style={{width:36,height:36,borderRadius:10,border:form.color===co.color?`3px solid ${C.text}`:"3px solid transparent",background:co.color,cursor:"pointer"}} />)}</div></div>
-      <FieldInput label="Name" value={form.name} onChange={v=>setForm(p=>({...p,name:v}))} placeholder="e.g. Leo" />
-      <FieldInput label="Age" value={String(form.age)} onChange={v=>setForm(p=>({...p,age:v}))} type="number" placeholder="13" />
-      <PrimaryBtn onClick={onSubmit}>{submitLabel}</PrimaryBtn>
-      {onDelete && <DeleteBtn onClick={onDelete} />}
-      <GhostBtn onClick={()=>{setShowAddKid(false);setShowEditKid(false);}}>Cancel</GhostBtn>
-    </div>
-  );
+
 
   if (!kid) return (
     <div style={{padding:"32px 20px",textAlign:"center"}}>
       <div style={{fontFamily:F,fontSize:15,color:C.muted,marginBottom:16}}>No profiles yet</div>
       <PrimaryBtn onClick={()=>setShowAddKid(true)}>Add first profile</PrimaryBtn>
-      {showAddKid && <Modal onClose={()=>setShowAddKid(false)}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>Add profile</div><KidFormUI form={kidForm} setForm={setKidForm} onSubmit={addKid} submitLabel="Add profile" /></Modal>}
+      {showAddKid && <Modal onClose={()=>setShowAddKid(false)}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>Add profile</div><KidFormUI form={kidForm} setForm={setKidForm} onSubmit={addKid} submitLabel="Add profile" onCancel={()=>setShowAddKid(false)} /></Modal>}
     </div>
   );
 
@@ -933,8 +944,8 @@ function ProfilesScreen({ kids, setKids, profiles, setProfiles, familyId, db }) 
           ))}
         </Card>
       ))}
-      {showAddKid && <Modal onClose={()=>setShowAddKid(false)}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>Add profile</div><KidFormUI form={kidForm} setForm={setKidForm} onSubmit={addKid} submitLabel="Add profile" /></Modal>}
-      {showEditKid && <Modal onClose={()=>setShowEditKid(false)}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>Edit profile</div><KidFormUI form={kidForm} setForm={setKidForm} onSubmit={saveEditKid} submitLabel="Save changes" onDelete={kids.length>1?()=>setShowDeleteConfirm(true):null} /></Modal>}
+      {showAddKid && <Modal onClose={()=>setShowAddKid(false)}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>Add profile</div><KidFormUI form={kidForm} setForm={setKidForm} onSubmit={addKid} submitLabel="Add profile" onCancel={()=>setShowAddKid(false)} /></Modal>}
+      {showEditKid && <Modal onClose={()=>setShowEditKid(false)}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>Edit profile</div><KidFormUI form={kidForm} setForm={setKidForm} onSubmit={saveEditKid} submitLabel="Save changes" onDelete={kids.length>1?()=>setShowDeleteConfirm(true):null} onCancel={()=>setShowEditKid(false)} /></Modal>}
       {showDeleteConfirm && <Modal onClose={()=>setShowDeleteConfirm(false)}><div style={{padding:"20px 20px 0"}}><div style={{fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:8}}>Delete {kid.name}?</div><div style={{fontFamily:F,fontSize:14,color:C.muted,marginBottom:20}}>This will remove their profile and all their info.</div><PrimaryBtn onClick={deleteKid} bg={C.red}>Yes, delete</PrimaryBtn><GhostBtn onClick={()=>setShowDeleteConfirm(false)}>Cancel</GhostBtn></div></Modal>}
     </div>
   );
@@ -1003,6 +1014,37 @@ function EventsScreen({ kids, events, setEvents, sportDays, setSportDays, family
   );
 }
 
+function ReqForm({req, setReq, kids, error}) {
+  return (
+    <div style={{padding:"0 20px"}}>
+      <div style={{marginBottom:14}}>
+        <div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Type</div>
+        <div style={{display:"flex",gap:8}}>
+          {Object.entries(typeConfig).map(([id,tc])=>(
+            <button key={id} onClick={()=>setReq(p=>({...p,type:id}))} style={{flex:1,padding:"10px 6px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:12,background:req.type===id?C.purple:C.purpleLight,color:req.type===id?"#fff":C.purple}}>{tc.label}</button>
+          ))}
+        </div>
+      </div>
+      <div style={{marginBottom:14,background:req.from_parent==="dad"?C.blueLight:C.pinkLight,borderRadius:12,padding:"10px 14px"}}>
+        <div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:4,textTransform:"uppercase",letterSpacing:0.8}}>Requesting as</div>
+        <div style={{fontFamily:F,fontSize:15,fontWeight:800,color:req.from_parent==="dad"?C.blue:C.pink}}>{req.from_parent==="dad"?"Dad":"Mum"}</div>
+      </div>
+      <div style={{marginBottom:14}}>
+        <div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Which kids?</div>
+        <div style={{display:"flex",gap:8}}>
+          {kids.map(k=>(
+            <button key={k.id} onClick={()=>setReq(p=>({...p,kidIds:(p.kidIds||[]).includes(k.id)?(p.kidIds||[]).filter(id=>id!==k.id):[...(p.kidIds||[]),k.id]}))} style={{flex:1,padding:"10px 0",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,background:(req.kidIds||[]).includes(k.id)?k.color:(k.color_light||C.purpleLight),color:(req.kidIds||[]).includes(k.id)?"#fff":k.color}}>{k.avatar} {k.name}</button>
+          ))}
+        </div>
+      </div>
+      <FieldInput label="Date" value={req.date} onChange={v=>setReq(p=>({...p,date:v}))} type="date" />
+      <FieldInput label="Time (optional)" value={req.time||""} onChange={v=>setReq(p=>({...p,time:v}))} type="time" />
+      <FieldTextarea label="Reason" value={req.reason||""} onChange={v=>setReq(p=>({...p,reason:v}))} placeholder="What is the occasion?" />
+      {error&&<div style={{background:C.redLight,color:C.red,borderRadius:12,padding:"10px 14px",fontFamily:F,fontSize:13,fontWeight:600,marginBottom:10}}>{error}</div>}
+    </div>
+  );
+}
+
 // ── Extras/Swaps Screen ───────────────────────────────────────────────────────
 function ExtrasScreen({ kids, extras, setExtras, familyId, db }) {
   const [showNew, setShowNew] = useState(false);
@@ -1038,17 +1080,7 @@ function ExtrasScreen({ kids, extras, setExtras, familyId, db }) {
   const filtered = filter==="all"?extras:extras.filter(e=>e.status===filter);
   const pendingCount = extras.filter(e=>e.status==="pending").length;
 
-  const ReqForm = ({req,setReq}) => (
-    <div style={{padding:"0 20px"}}>
-      <div style={{marginBottom:14}}><div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Type</div><div style={{display:"flex",gap:8}}>{Object.entries(typeConfig).map(([id,tc])=><button key={id} onClick={()=>setReq(p=>({...p,type:id}))} style={{flex:1,padding:"10px 6px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:12,background:req.type===id?C.purple:C.purpleLight,color:req.type===id?"#fff":C.purple}}>{tc.label}</button>)}</div></div>
-      <div style={{marginBottom:14}}><div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>From</div><div style={{display:"flex",gap:8}}>{["dad","mum"].map(pw=><button key={pw} onClick={()=>setReq(prev=>({...prev,from_parent:pw}))} style={{flex:1,padding:"10px 0",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,background:req.from_parent===pw?(pw==="dad"?C.blue:C.pink):(pw==="dad"?C.blueLight:C.pinkLight),color:req.from_parent===pw?"#fff":(pw==="dad"?C.blue:C.pink)}}>{pw==="dad"?"Dad":"Mum"}</button>)}</div></div>
-      <div style={{marginBottom:14}}><div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Which kids?</div><div style={{display:"flex",gap:8}}>{kids.map(k=><button key={k.id} onClick={()=>setReq(p=>({...p,kidIds:p.kidIds.includes(k.id)?p.kidIds.filter(id=>id!==k.id):[...p.kidIds,k.id]}))} style={{flex:1,padding:"10px 0",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,background:req.kidIds.includes(k.id)?k.color:(k.color_light||C.purpleLight),color:req.kidIds.includes(k.id)?"#fff":k.color}}>{k.avatar} {k.name}</button>)}</div></div>
-      <FieldInput label="Date" value={req.date} onChange={v=>setReq(p=>({...p,date:v}))} type="date" />
-      <FieldInput label="Time (optional)" value={req.time||""} onChange={v=>setReq(p=>({...p,time:v}))} type="time" />
-      <FieldTextarea label="Reason" value={req.reason||""} onChange={v=>setReq(p=>({...p,reason:v}))} placeholder="What is the occasion?" />
-      {error&&<div style={{background:C.redLight,color:C.red,borderRadius:12,padding:"10px 14px",fontFamily:F,fontSize:13,fontWeight:600,marginBottom:10}}>{error}</div>}
-    </div>
-  );
+
 
   return (
     <div style={{padding:"0 16px 32px"}}>
@@ -1082,8 +1114,8 @@ function ExtrasScreen({ kids, extras, setExtras, familyId, db }) {
         );
       })}
       <button onClick={()=>{setShowNew(true);setError("");}} style={{width:"100%",padding:"14px 0",borderRadius:16,border:`2px dashed ${C.purpleLight}`,background:"transparent",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:14,color:C.purple,marginTop:4}}>+ New request</button>
-      {showNew&&<Modal onClose={()=>{setShowNew(false);setError("");}}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>New request</div><ReqForm req={newReq} setReq={setNewReq} /><div style={{padding:"0 20px"}}><PrimaryBtn onClick={submitNew}>Send request</PrimaryBtn><GhostBtn onClick={()=>{setShowNew(false);setError("");}}>Cancel</GhostBtn></div></Modal>}
-      {editingReq&&<Modal onClose={()=>{setEditingReq(null);setError("");}}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>Edit request</div><ReqForm req={editingReq} setReq={setEditingReq} /><div style={{padding:"0 20px"}}><PrimaryBtn onClick={saveEdit}>Save changes</PrimaryBtn><DeleteBtn onClick={async()=>{await db.remove("extras",editingReq.id);setExtras(prev=>prev.filter(e=>e.id!==editingReq.id));setEditingReq(null);}} /><GhostBtn onClick={()=>{setEditingReq(null);setError("");}}>Cancel</GhostBtn></div></Modal>}
+      {showNew&&<Modal onClose={()=>{setShowNew(false);setError("");}}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>New request</div><ReqForm req={newReq} setReq={setNewReq} kids={kids} error={error} /><div style={{padding:"0 20px"}}><PrimaryBtn onClick={submitNew}>Send request</PrimaryBtn><GhostBtn onClick={()=>{setShowNew(false);setError("");}}>Cancel</GhostBtn></div></Modal>}
+      {editingReq&&<Modal onClose={()=>{setEditingReq(null);setError("");}}><div style={{padding:"20px 20px 0",fontFamily:F,fontWeight:900,fontSize:20,color:C.text,marginBottom:16}}>Edit request</div><ReqForm req={editingReq} setReq={setEditingReq} kids={kids} error={error} /><div style={{padding:"0 20px"}}><PrimaryBtn onClick={saveEdit}>Save changes</PrimaryBtn><DeleteBtn onClick={async()=>{await db.remove("extras",editingReq.id);setExtras(prev=>prev.filter(e=>e.id!==editingReq.id));setEditingReq(null);}} /><GhostBtn onClick={()=>{setEditingReq(null);setError("");}}>Cancel</GhostBtn></div></Modal>}
     </div>
   );
 }
