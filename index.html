@@ -878,24 +878,6 @@ function KidFormUI({form, setForm, onSubmit, submitLabel, onDelete, onCancel}) {
 }
 
 
-function KidFormUI({form, setForm, onSubmit, submitLabel, onDelete, onCancel}) {
-  return (
-    <div style={{padding:"0 20px"}}>
-      <AvatarPicker value={form.avatar} onChange={a=>setForm(p=>({...p,avatar:a}))} />
-      <div style={{marginBottom:14}}>
-        <div style={{fontFamily:F,fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:0.8}}>Colour</div>
-        <div style={{display:"flex",gap:8}}>
-          {PROFILE_COLORS.map(co=><button key={co.color} onMouseDown={e=>e.preventDefault()} onClick={()=>setForm(p=>({...p,color:co.color,colorLight:co.colorLight}))} style={{width:36,height:36,borderRadius:10,border:form.color===co.color?`3px solid ${C.text}`:"3px solid transparent",background:co.color,cursor:"pointer"}} />)}
-        </div>
-      </div>
-      <FieldInput label="Name" value={form.name} onChange={v=>setForm(p=>({...p,name:v}))} placeholder="e.g. Leo" />
-      <FieldInput label="Age" value={String(form.age||"")} onChange={v=>setForm(p=>({...p,age:v}))} type="number" placeholder="13" />
-      <PrimaryBtn onClick={onSubmit}>{submitLabel}</PrimaryBtn>
-      {onDelete && <DeleteBtn onClick={onDelete} />}
-      <GhostBtn onClick={onCancel}>Cancel</GhostBtn>
-    </div>
-  );
-}
 
 // ── Profiles Screen ───────────────────────────────────────────────────────────
 function ProfilesScreen({ kids, setKids, profiles, setProfiles, familyId, db }) {
@@ -938,7 +920,6 @@ function ProfilesScreen({ kids, setKids, profiles, setProfiles, familyId, db }) 
     setKids(remaining); setActiveKid(remaining[0]?.id||null); setShowDeleteConfirm(false);
   };
 
-  // KidFormUI moved to module level
 
   if (!kid) return (
     <div style={{padding:"32px 20px",textAlign:"center"}}>
